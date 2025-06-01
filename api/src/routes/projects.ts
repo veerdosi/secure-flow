@@ -1,30 +1,17 @@
 import { Router, Request, Response } from 'express';
 import { body, param, validationResult } from 'express-validator';
-import { getDb } from '../services/firebase';
-import gitlabService from '../services/gitlab';
+import { Project, Analysis } from '../models';
+import { AuthenticatedRequest } from '../middleware/auth';
 import { requireRole } from '../middleware/auth';
+import gitlabService from '../services/gitlab';
 import logger from '../utils/logger';
 
 const router = Router();
 
-interface AuthenticatedRequest extends Request {
-  user?: {
-    uid: string;
-    email: string;
-    role: string;
-  };
-}
-
 // Get all projects for user
 router.get('/', async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const db = getDb();
-    const snapshot = await db.collection('projects').get();
-    const projects = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
-
+    const projects = await Project.find({ createdBy: req.user?._id });
     res.json(projects);
   } catch (error) {
     logger.error('Failed to get projects:', error);
@@ -35,7 +22,7 @@ router.get('/', async (req: AuthenticatedRequest, res: Response) => {
 // Get specific project
 router.get('/:projectId',
   param('projectId').notEmpty(),
-  async (req: Request, res: Response) => {
+  async (req: AuthenticatedRequest, res: Response) => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
@@ -43,15 +30,16 @@ router.get('/:projectId',
       }
 
       const { projectId } = req.params;
-      const db = getDb();
 
-      const doc = await db.collection('projects').doc(projectId).get();
+      const project = await Project.findOne({
+        gitlabProjectId: projectId,
+        createdBy: req.user?._id
+      });
 
-      if (!doc.exists) {
+      if (!project) {
         return res.status(404).json({ error: 'Project not found' });
       }
 
-      const project = { id: doc.id, ...doc.data() };
       res.json(project);
     } catch (error) {
       logger.error('Failed to get project:', error);
@@ -69,6 +57,7 @@ router.post('/',
     body('repositoryUrl').isURL().withMessage('Valid repository URL is required'),
     body('branch').optional().isString(),
     body('scanFrequency').isIn(['ON_PUSH', 'DAILY', 'WEEKLY']).withMessage('Invalid scan frequency'),
+    body('webhookSecret').notEmpty().withMessage('Webhook secret is required'),
   ],
   async (req: AuthenticatedRequest, res: Response) => {
     try {
@@ -83,6 +72,7 @@ router.post('/',
         repositoryUrl,
         branch = 'main',
         scanFrequency = 'ON_PUSH',
+        webhookSecret,
         notificationSettings = {
           email: true,
           slack: false,
@@ -95,11 +85,9 @@ router.post('/',
         complianceFrameworks = ['OWASP']
       } = req.body;
 
-      const db = getDb();
-
       // Check if project already exists
-      const existingDoc = await db.collection('projects').doc(gitlabProjectId).get();
-      if (existingDoc.exists) {
+      const existingProject = await Project.findOne({ gitlabProjectId });
+      if (existingProject) {
         return res.status(409).json({ error: 'Project already configured' });
       }
 
@@ -114,8 +102,7 @@ router.post('/',
         // Continue without webhook for now
       }
 
-      const project = {
-        id: gitlabProjectId,
+      const project = new Project({
         name,
         gitlabProjectId,
         repositoryUrl,
@@ -125,13 +112,12 @@ router.post('/',
         excludePaths,
         scanTypes,
         complianceFrameworks,
+        webhookSecret,
         webhookId,
-        createdBy: req.user?.uid,
-        createdAt: new Date().toISOString(),
-        lastScanDate: null,
-      };
+        createdBy: req.user?._id,
+      });
 
-      await db.collection('projects').doc(gitlabProjectId).set(project);
+      await project.save();
 
       logger.info(`Project ${name} configured successfully`, { projectId: gitlabProjectId });
 
@@ -163,24 +149,28 @@ router.put('/:projectId',
 
       const { projectId } = req.params;
       const updates = req.body;
-      const db = getDb();
 
       // Remove fields that shouldn't be updated
-      delete updates.id;
+      delete updates._id;
       delete updates.gitlabProjectId;
       delete updates.createdBy;
       delete updates.createdAt;
 
-      updates.updatedAt = new Date().toISOString();
-      updates.updatedBy = req.user?.uid;
+      const project = await Project.findOneAndUpdate(
+        { gitlabProjectId: projectId, createdBy: req.user?._id },
+        { ...updates, updatedAt: new Date() },
+        { new: true }
+      );
 
-      await db.collection('projects').doc(projectId).update(updates);
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
 
       logger.info(`Project ${projectId} updated successfully`);
 
       res.json({
         message: 'Project updated successfully',
-        projectId,
+        project,
       });
     } catch (error) {
       logger.error('Failed to update project:', error);
@@ -201,24 +191,26 @@ router.delete('/:projectId',
       }
 
       const { projectId } = req.params;
-      const db = getDb();
 
-      // Get project to check for webhook
-      const doc = await db.collection('projects').doc(projectId).get();
-      if (doc.exists) {
-        const project = doc.data();
+      const project = await Project.findOne({
+        gitlabProjectId: projectId,
+        createdBy: req.user?._id
+      });
 
-        // Delete GitLab webhook if exists
-        if (project.webhookId) {
-          try {
-            await gitlabService.deleteWebhook(projectId, project.webhookId);
-          } catch (webhookError) {
-            logger.warn('Failed to delete GitLab webhook:', webhookError);
-          }
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+
+      // Delete GitLab webhook if exists
+      if (project.webhookId) {
+        try {
+          await gitlabService.deleteWebhook(projectId, project.webhookId);
+        } catch (webhookError) {
+          logger.warn('Failed to delete GitLab webhook:', webhookError);
         }
       }
 
-      await db.collection('projects').doc(projectId).delete();
+      await Project.findByIdAndDelete(project._id);
 
       logger.info(`Project ${projectId} deleted successfully`);
 
@@ -236,7 +228,7 @@ router.delete('/:projectId',
 // Get project statistics
 router.get('/:projectId/stats',
   param('projectId').notEmpty(),
-  async (req: Request, res: Response) => {
+  async (req: AuthenticatedRequest, res: Response) => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
@@ -244,17 +236,21 @@ router.get('/:projectId/stats',
       }
 
       const { projectId } = req.params;
-      const db = getDb();
+
+      // Verify project belongs to user
+      const project = await Project.findOne({
+        gitlabProjectId: projectId,
+        createdBy: req.user?._id
+      });
+
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
 
       // Get recent analyses
-      const snapshot = await db
-        .collection('analyses')
-        .where('projectId', '==', projectId)
-        .orderBy('timestamp', 'desc')
-        .limit(30)
-        .get();
-
-      const analyses = snapshot.docs.map(doc => doc.data());
+      const analyses = await Analysis.find({ projectId })
+        .sort({ createdAt: -1 })
+        .limit(30);
 
       // Calculate statistics
       const stats = {
@@ -267,7 +263,7 @@ router.get('/:projectId/stats',
           sum + (a.vulnerabilities?.filter((v: any) => v.severity === 'CRITICAL').length || 0), 0),
         lastAnalysis: analyses[0] || null,
         trendsLast30Days: analyses.slice(0, 30).map(a => ({
-          date: a.timestamp,
+          date: a.createdAt,
           score: a.securityScore,
           vulnerabilities: a.vulnerabilities?.length || 0,
         })),

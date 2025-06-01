@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { User } from '../models';
 import logger from '../utils/logger';
 
 interface GitLabFile {
@@ -9,21 +10,27 @@ interface GitLabFile {
 }
 
 class GitLabService {
-  private baseUrl: string;
-  private token: string;
 
-  constructor() {
-    this.baseUrl = 'https://gitlab.com/api/v4';
-    this.token = process.env.GITLAB_API_TOKEN || '';
+  private async getGitLabConfig(userId: string) {
+    const user = await User.findById(userId);
+    if (!user?.gitlabSettings?.apiToken) {
+      throw new Error('GitLab API token not configured for user');
+    }
+    return {
+      baseUrl: user.gitlabSettings.baseUrl || 'https://gitlab.com',
+      token: user.gitlabSettings.apiToken,
+    };
   }
 
-  async getProjectFiles(projectId: string, ref: string = 'main'): Promise<GitLabFile[]> {
+  async getProjectFiles(projectId: string, userId: string, ref: string = 'main'): Promise<GitLabFile[]> {
     try {
+      const { baseUrl, token } = await this.getGitLabConfig(userId);
+
       const response = await axios.get(
-        `${this.baseUrl}/projects/${projectId}/repository/tree`,
+        `${baseUrl}/api/v4/projects/${projectId}/repository/tree`,
         {
           headers: {
-            'Private-Token': this.token,
+            'Private-Token': token,
           },
           params: {
             ref,
@@ -42,13 +49,15 @@ class GitLabService {
     }
   }
 
-  async getFileContent(projectId: string, filePath: string, ref: string = 'main'): Promise<string> {
+  async getFileContent(projectId: string, userId: string, filePath: string, ref: string = 'main'): Promise<string> {
     try {
+      const { baseUrl, token } = await this.getGitLabConfig(userId);
+
       const response = await axios.get(
-        `${this.baseUrl}/projects/${projectId}/repository/files/${encodeURIComponent(filePath)}/raw`,
+        `${baseUrl}/api/v4/projects/${projectId}/repository/files/${encodeURIComponent(filePath)}/raw`,
         {
           headers: {
-            'Private-Token': this.token,
+            'Private-Token': token,
           },
           params: {
             ref,
@@ -63,13 +72,15 @@ class GitLabService {
     }
   }
 
-  async getCommitInfo(projectId: string, commitSha: string): Promise<any> {
+  async getCommitInfo(projectId: string, userId: string, commitSha: string): Promise<any> {
     try {
+      const { baseUrl, token } = await this.getGitLabConfig(userId);
+
       const response = await axios.get(
-        `${this.baseUrl}/projects/${projectId}/repository/commits/${commitSha}`,
+        `${baseUrl}/api/v4/projects/${projectId}/repository/commits/${commitSha}`,
         {
           headers: {
-            'Private-Token': this.token,
+            'Private-Token': token,
           },
         }
       );
@@ -81,13 +92,15 @@ class GitLabService {
     }
   }
 
-  async getChangedFiles(projectId: string, commitSha: string): Promise<string[]> {
+  async getChangedFiles(projectId: string, userId: string, commitSha: string): Promise<string[]> {
     try {
+      const { baseUrl, token } = await this.getGitLabConfig(userId);
+
       const response = await axios.get(
-        `${this.baseUrl}/projects/${projectId}/repository/commits/${commitSha}/diff`,
+        `${baseUrl}/api/v4/projects/${projectId}/repository/commits/${commitSha}/diff`,
         {
           headers: {
-            'Private-Token': this.token,
+            'Private-Token': token,
           },
         }
       );
@@ -101,20 +114,22 @@ class GitLabService {
     }
   }
 
-  async createWebhook(projectId: string, webhookUrl: string): Promise<any> {
+  async createWebhook(projectId: string, userId: string, webhookUrl: string, webhookSecret: string): Promise<any> {
     try {
+      const { baseUrl, token } = await this.getGitLabConfig(userId);
+
       const response = await axios.post(
-        `${this.baseUrl}/projects/${projectId}/hooks`,
+        `${baseUrl}/api/v4/projects/${projectId}/hooks`,
         {
           url: webhookUrl,
           push_events: true,
           merge_requests_events: true,
-          token: process.env.GITLAB_WEBHOOK_SECRET,
+          token: webhookSecret, // Use user's webhook secret
           enable_ssl_verification: true,
         },
         {
           headers: {
-            'Private-Token': this.token,
+            'Private-Token': token,
           },
         }
       );
@@ -126,13 +141,15 @@ class GitLabService {
     }
   }
 
-  async deleteWebhook(projectId: string, webhookId: string): Promise<void> {
+  async deleteWebhook(projectId: string, userId: string, webhookId: string): Promise<void> {
     try {
+      const { baseUrl, token } = await this.getGitLabConfig(userId);
+
       await axios.delete(
-        `${this.baseUrl}/projects/${projectId}/hooks/${webhookId}`,
+        `${baseUrl}/api/v4/projects/${projectId}/hooks/${webhookId}`,
         {
           headers: {
-            'Private-Token': this.token,
+            'Private-Token': token,
           },
         }
       );
@@ -155,9 +172,8 @@ class GitLabService {
            ['dockerfile', 'makefile', 'jenkinsfile'].includes(lowerName);
   }
 
-  validateWebhookSignature(payload: string, signature: string): boolean {
+  validateWebhookSignature(payload: string, signature: string, secret: string): boolean {
     const crypto = require('crypto');
-    const secret = process.env.GITLAB_WEBHOOK_SECRET || '';
     const expectedSignature = crypto
       .createHmac('sha256', secret)
       .update(payload, 'utf8')
