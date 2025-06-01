@@ -9,7 +9,7 @@ export default function Home() {
         <meta name="description" content="Real-time AI-powered security analysis for your GitLab projects" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
-      <Dashboard projectId="webapp-api" />
+      <Dashboard />
     </>
   )
 }

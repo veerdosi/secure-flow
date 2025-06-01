@@ -2,10 +2,12 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
-import { initializeFirebase } from './services/firebase';
+import { connectDB } from './models';
 import { errorHandler } from './middleware/errorHandler';
 import { authMiddleware } from './middleware/auth';
+import authRoutes from './routes/auth';
 import analysisRoutes from './routes/analysis';
 import projectRoutes from './routes/projects';
 import webhookRoutes from './routes/webhooks';
@@ -16,8 +18,15 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Initialize Firebase
-initializeFirebase();
+// Connect to MongoDB
+connectDB();
+
+// Rate limiting
+const limiter = rateLimit({
+  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000'), // 15 minutes
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100'), // limit each IP to 100 requests per windowMs
+  message: 'Too many requests from this IP, please try again later.',
+});
 
 // Middleware
 app.use(helmet());
@@ -25,6 +34,7 @@ app.use(cors({
   origin: process.env.CLIENT_URL || 'http://localhost:3000',
   credentials: true
 }));
+app.use(limiter);
 app.use(morgan('combined'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
@@ -34,11 +44,13 @@ app.get('/health', (req, res) => {
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
-    version: process.env.npm_package_version || '1.0.0'
+    version: process.env.npm_package_version || '1.0.0',
+    database: 'connected'
   });
 });
 
 // Routes
+app.use('/api/auth', authRoutes);
 app.use('/api/webhooks', webhookRoutes); // No auth required for webhooks
 app.use('/api/analysis', authMiddleware, analysisRoutes);
 app.use('/api/projects', authMiddleware, projectRoutes);
@@ -54,6 +66,7 @@ app.use('*', (req, res) => {
 app.listen(PORT, () => {
   logger.info(`🚀 SecureFlow API server running on port ${PORT}`);
   logger.info(`📊 Health check available at http://localhost:${PORT}/health`);
+  logger.info(`🗄️  Using MongoDB database`);
 });
 
 export default app;

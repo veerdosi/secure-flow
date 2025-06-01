@@ -73,34 +73,41 @@ npm install
 Copy `.env.example` to `.env` and configure:
 
 ```bash
-# Firebase
-FIREBASE_PROJECT_ID=your-project-id
-FIREBASE_API_KEY=your-api-key
+# MongoDB (required)
+MONGODB_URI=mongodb://localhost:27017/secure-flow
+# or MongoDB Atlas: mongodb+srv://user:pass@cluster.mongodb.net/secure-flow
 
-# Google Cloud
+# JWT Authentication
+JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
+
+# Google Cloud (only needed for AI analysis)
 GOOGLE_CLOUD_PROJECT=your-project-id
 VERTEX_AI_LOCATION=us-central1
 
-# GitLab
-GITLAB_API_TOKEN=your-gitlab-token
-GITLAB_WEBHOOK_SECRET=your-webhook-secret
+# Optional: Email notifications
+SMTP_HOST=smtp.gmail.com
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-app-password
 ```
 
-### 3. Firebase Setup
+**Note:** GitLab API tokens are now configured per-user in the app settings, not in environment variables!
 
+### 3. Database Setup
+
+**Option A: Local MongoDB**
 ```bash
-# Install Firebase CLI
-npm install -g firebase-tools
+# Install MongoDB locally
+brew install mongodb/brew/mongodb-community  # macOS
+# or follow MongoDB installation guide for your OS
 
-# Login to Firebase
-firebase login
-
-# Initialize project
-firebase init
-
-# Deploy Firestore rules and indexes
-firebase deploy --only firestore
+# Start MongoDB
+brew services start mongodb/brew/mongodb-community
 ```
+
+**Option B: MongoDB Atlas (Cloud)**
+1. Create free account at [MongoDB Atlas](https://www.mongodb.com/atlas)
+2. Create a cluster and get connection string
+3. Update MONGODB_URI in .env file
 
 ### 4. Development
 
@@ -113,17 +120,13 @@ npm run dev:client  # Frontend (port 3000)
 npm run dev:api     # Backend API (port 3001)
 ```
 
-### 5. Deploy
+### 5. User Setup
 
-```bash
-# Build and deploy client
-npm run build:client
-firebase deploy --only hosting
-
-# Deploy cloud functions
-cd cloud-functions/webhook-handler
-npm run deploy
-```
+1. **Create Account**: Sign up at http://localhost:3000
+2. **Configure GitLab**: Click profile → GitLab Settings
+   - Create GitLab Personal Access Token with "api" scope
+   - Add your GitLab URL and token
+3. **Add Project**: Click "Add GitLab Project" and configure webhook
 
 ## 🔧 Configuration
 

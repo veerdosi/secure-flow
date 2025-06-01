@@ -1,14 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { admin } from '../services/firebase';
+import { User, IUser } from '../models';
 import logger from '../utils/logger';
 
-interface AuthenticatedRequest extends Request {
-  user?: {
-    uid: string;
-    email: string;
-    role: string;
-  };
+export interface AuthenticatedRequest extends Request {
+  user?: IUser;
 }
 
 export const authMiddleware = async (
@@ -28,37 +24,22 @@ export const authMiddleware = async (
     const token = authHeader.substring(7);
 
     try {
-      // Verify Firebase ID token
-      const decodedToken = await admin.auth().verifyIdToken(token);
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'dev-secret') as any;
 
-      req.user = {
-        uid: decodedToken.uid,
-        email: decodedToken.email || '',
-        role: decodedToken.role || 'VIEWER',
-      };
-
-      next();
-    } catch (firebaseError) {
-      // Fallback to JWT verification for development
-      if (process.env.NODE_ENV === 'development') {
-        try {
-          const decoded = jwt.verify(token, process.env.JWT_SECRET || 'dev-secret') as any;
-          req.user = {
-            uid: decoded.uid,
-            email: decoded.email,
-            role: decoded.role || 'VIEWER',
-          };
-          next();
-        } catch (jwtError) {
-          return res.status(401).json({
-            error: 'Invalid token'
-          });
-        }
-      } else {
+      // Get user from database
+      const user = await User.findById(decoded.userId).select('-password');
+      if (!user) {
         return res.status(401).json({
-          error: 'Invalid Firebase token'
+          error: 'User not found'
         });
       }
+
+      req.user = user;
+      next();
+    } catch (jwtError) {
+      return res.status(401).json({
+        error: 'Invalid token'
+      });
     }
   } catch (error) {
     logger.error('Auth middleware error:', error);

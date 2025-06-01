@@ -11,6 +11,13 @@ export interface SecurityAnalysis {
   remediationSteps: RemediationStep[];
   complianceScore: ComplianceScore;
   status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED';
+  stage?: AnalysisStage;
+  progress?: number;
+  startedAt?: string;
+  completedAt?: string;
+  failedAt?: string;
+  triggeredBy?: 'manual' | 'webhook' | 'scheduled';
+  userId?: string;
 }
 
 export interface Vulnerability {
@@ -120,6 +127,11 @@ export interface ProjectConfig {
   complianceFrameworks: string[];
   lastScanDate?: string;
   webhookId?: string;
+  webhookSecret?: string;
+  createdBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  updatedBy?: string;
 }
 
 export interface NotificationSettings {
@@ -166,6 +178,8 @@ export interface User {
   projects: string[];
   preferences: UserPreferences;
   lastLogin: string;
+  createdAt?: string;
+  getIdToken?: () => Promise<string>;
 }
 
 export interface UserPreferences {
