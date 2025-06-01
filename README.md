@@ -29,6 +29,7 @@ GitLab Webhook → Cloud Function → Vertex AI → Firestore → React Dashboar
 ## 🛠️ Tech Stack
 
 ### Frontend
+
 - **Next.js 14** - React framework with app router
 - **TypeScript** - Type-safe development
 - **Tailwind CSS** - Utility-first styling with cyber theme
@@ -37,12 +38,14 @@ GitLab Webhook → Cloud Function → Vertex AI → Firestore → React Dashboar
 - **Recharts** - Security metrics and charts
 
 ### Backend
+
 - **Node.js/Express** - REST API server
 - **Firebase Firestore** - Real-time database
 - **Google Vertex AI** - AI-powered code analysis
 - **GitLab API** - Repository integration
 
 ### Infrastructure
+
 - **Google Cloud Functions** - Serverless webhook processing
 - **Firebase Hosting** - Static site deployment
 - **Firebase Authentication** - User management
@@ -122,89 +125,6 @@ cd cloud-functions/webhook-handler
 npm run deploy
 ```
 
-## 📊 Features Demo
-
-### Real-Time Security Dashboard
-
-```typescript
-// Live security score updates
-const [analysis, setAnalysis] = useState<SecurityAnalysis | null>(null);
-
-useEffect(() => {
-  const unsubscribe = onSnapshot(
-    doc(db, 'analyses', analysisId),
-    (doc) => setAnalysis(doc.data())
-  );
-  return unsubscribe;
-}, [analysisId]);
-```
-
-### AI-Powered Vulnerability Detection
-
-```typescript
-// Vertex AI analysis
-const aiResult = await aiAnalysisService.analyzeCode(codeContent, filePath);
-
-// Example response:
-{
-  "vulnerabilities": [{
-    "type": "SQL_INJECTION",
-    "severity": "CRITICAL",
-    "line": 47,
-    "description": "SQL injection in login endpoint",
-    "suggestedFix": "Use parameterized queries",
-    "confidence": 0.95
-  }],
-  "securityScore": 87,
-  "threatLevel": "MEDIUM"
-}
-```
-
-### GitLab Webhook Integration
-
-```typescript
-// Automatic analysis on code push
-router.post('/webhooks/gitlab', async (req, res) => {
-  const { object_kind, project, commits } = req.body;
-
-  if (object_kind === 'push') {
-    await triggerSecurityAnalysis(project.id, commits[0].id);
-  }
-});
-```
-
-## 🎨 UI Components
-
-### Animated Security Score Ring
-
-```tsx
-<SecurityScoreRing
-  score={87}
-  size={120}
-  animated={true}
-/>
-```
-
-### 3D Threat Model Visualization
-
-```tsx
-<ThreatModelVisualization
-  threatModel={analysis.threatModel}
-  interactive={true}
-  showAttackPaths={true}
-/>
-```
-
-### Real-Time Analysis Feed
-
-```tsx
-<RealTimeAnalysisFeed
-  analysis={analysis}
-  showLiveUpdates={true}
-  maxItems={10}
-/>
-```
-
 ## 🔧 Configuration
 
 ### Project Setup
@@ -217,8 +137,8 @@ const projectConfig = {
   scanTypes: ["STATIC_ANALYSIS", "DEPENDENCY_SCAN"],
   notificationSettings: {
     email: true,
-    minSeverity: "MEDIUM"
-  }
+    minSeverity: "MEDIUM",
+  },
 };
 ```
 
@@ -234,21 +154,6 @@ https://your-domain.com/api/webhooks/gitlab
 
 # Secret token: Set in environment variables
 ```
-
-## 📈 Security Metrics
-
-- **Security Score**: 0-100 based on vulnerability severity and count
-- **Threat Level**: LOW, MEDIUM, HIGH, CRITICAL
-- **Compliance Scores**: OWASP, PCI, SOX, GDPR percentages
-- **Attack Surface**: Endpoints, input points, dependencies analyzed
-
-## 🎯 AI Analysis Features
-
-- **Static Code Analysis** - Pattern matching for known vulnerabilities
-- **Dependency Scanning** - Check for vulnerable packages
-- **Secret Detection** - Find exposed API keys and credentials
-- **Threat Modeling** - Generate attack vectors and data flow analysis
-- **Remediation Suggestions** - AI-generated fix recommendations
 
 ## 🚀 Deployment Options
 
@@ -268,14 +173,6 @@ cd client && npm run build
 # Deploy to your hosting provider
 # Upload client/out/ directory
 ```
-
-## 🔒 Security
-
-- Firebase Authentication for user management
-- Firestore security rules for data access control
-- Webhook signature verification
-- API rate limiting and validation
-- Encrypted data transmission
 
 ## 📝 API Documentation
 
@@ -306,35 +203,3 @@ POST /api/projects
   "scanFrequency": "ON_PUSH"
 }
 ```
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit changes (`git commit -m 'Add amazing feature'`)
-4. Push to branch (`git push origin feature/amazing-feature`)
-5. Open Pull Request
-
-## 📄 License
-
-This project is licensed under the MIT License - see [LICENSE](LICENSE) file for details.
-
-## 🎪 Hackathon Demo
-
-This project was built for a hackathon to demonstrate:
-- Real-time AI security analysis
-- Interactive 3D visualizations
-- Modern React/Next.js development
-- Firebase/Google Cloud integration
-- GitLab API integration
-
-### Demo Flow
-
-1. **Setup** (30s) - Dashboard loads with smooth animations
-2. **Trigger** (30s) - GitLab push triggers webhook, analysis begins
-3. **Analysis** (60s) - Live feed shows AI findings, 3D model updates
-4. **Results** - Security score, vulnerabilities, and remediation steps
-
----
-
-**Built with ❤️ for hackathon demo - SecureFlow AI makes security analysis beautiful and actionable**

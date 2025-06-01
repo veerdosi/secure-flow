@@ -121,3 +121,4 @@ temp/
 *.njsproj
 *.sln
 *.sw?
+codemcp.toml
