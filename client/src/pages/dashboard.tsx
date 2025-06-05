@@ -1,7 +1,7 @@
 import Head from 'next/head'
 import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Shield, GitBranch, Plus, AlertCircle, Settings, Zap } from 'lucide-react'
+import { Shield, GitBranch, Plus, AlertCircle, Settings, Zap, ArrowRight } from 'lucide-react'
 import { useUser, UserProfile } from '@/components/UserProvider'
 import Dashboard from '@/components/Dashboard'
 import ProjectSetup from '@/components/ProjectSetup'
@@ -53,7 +53,7 @@ export default function DashboardPage() {
     try {
       const projectData = await projectAPI.getAll()
       setProjects(projectData)
-      
+
       // Auto-select first project if available and no project in URL
       if (projectData.length > 0 && !selectedProject && !router.query.project) {
         setSelectedProject(projectData[0])
@@ -71,7 +71,7 @@ export default function DashboardPage() {
     try {
       const health = await systemAPI.validateCredentials()
       setSystemHealth(health)
-      
+
       if (health.status !== 'healthy') {
         console.warn('System health check failed:', health.details?.errors)
       }
@@ -119,7 +119,7 @@ export default function DashboardPage() {
         <Head>
           <title>SecureFlow AI - System Configuration</title>
         </Head>
-        
+
         <div className="min-h-screen bg-dark-bg text-white">
           <div className="border-b border-dark-border bg-dark-card/50 backdrop-blur-sm">
             <div className="max-w-7xl mx-auto px-6 py-4">
@@ -150,161 +150,277 @@ export default function DashboardPage() {
                 <ul className="space-y-2">
                   {systemHealth?.details?.errors?.map((error: string, index: number) => (
                     <li key={index} className="text-sm text-gray-300">
-                      • {error}
-                    </li>
-                  ))}
-                </ul>
+                    • {error}
+                  </li>
+                ))}
+              </ul>
 
-                <div className="mt-6 pt-4 border-t border-gray-700">
-                  <h4 className="font-medium mb-2">Required Environment Variables:</h4>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <span className="text-gray-400">MONGODB_URI:</span>
-                      <span className={systemHealth?.details?.environment?.mongodbUri ? 'text-green-400 ml-2' : 'text-red-400 ml-2'}>
-                        {systemHealth?.details?.environment?.mongodbUri ? '✓' : '✗'}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-gray-400">GEMINI_API_KEY:</span>
-                      <span className={systemHealth?.details?.environment?.geminiApiKey ? 'text-green-400 ml-2' : 'text-red-400 ml-2'}>
-                        {systemHealth?.details?.environment?.geminiApiKey ? '✓' : '✗'}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-gray-400">JWT_SECRET:</span>
-                      <span className={systemHealth?.details?.environment?.jwtSecret ? 'text-green-400 ml-2' : 'text-red-400 ml-2'}>
-                        {systemHealth?.details?.environment?.jwtSecret ? '✓' : '✗'}
-                      </span>
-                    </div>
+              <div className="mt-6 pt-4 border-t border-gray-700">
+                <h4 className="font-medium mb-2">Required Environment Variables:</h4>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-gray-400">MONGODB_URI:</span>
+                    <span className={systemHealth?.details?.environment?.mongodbUri ? 'text-green-400 ml-2' : 'text-red-400 ml-2'}>
+                      {systemHealth?.details?.environment?.mongodbUri ? '✓' : '✗'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-400">GEMINI_API_KEY:</span>
+                    <span className={systemHealth?.details?.environment?.geminiApiKey ? 'text-green-400 ml-2' : 'text-red-400 ml-2'}>
+                      {systemHealth?.details?.environment?.geminiApiKey ? '✓' : '✗'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-400">JWT_SECRET:</span>
+                    <span className={systemHealth?.details?.environment?.jwtSecret ? 'text-green-400 ml-2' : 'text-red-400 ml-2'}>
+                      {systemHealth?.details?.environment?.jwtSecret ? '✓' : '✗'}
+                    </span>
                   </div>
                 </div>
               </div>
-
-              <button
-                onClick={checkSystemHealth}
-                className="mt-6 bg-cyber-blue hover:bg-blue-600 text-white font-semibold py-2 px-6 rounded-lg transition-colors"
-              >
-                Retry System Check
-              </button>
-            </motion.div>
-          </div>
-        </div>
-      </>
-    )
-  }
-
-  // Dashboard with projects
-  if (selectedProject) {
-    return (
-      <>
-        <Head>
-          <title>{`${selectedProject.name} - SecureFlow AI`}</title>
-        </Head>
-        
-        <div className="min-h-screen bg-dark-bg text-white">
-          {/* Header with project selector */}
-          <div className="border-b border-dark-border bg-dark-card/50 backdrop-blur-sm">
-            <div className="max-w-7xl mx-auto px-6 py-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <Shield className="w-8 h-8 text-cyber-blue" />
-                  <h1 className="text-2xl font-bold">SecureFlow AI</h1>
-                  {projects.length > 1 && (
-                    <select
-                      value={selectedProject._id}
-                      onChange={(e) => {
-                        const project = projects.find(p => p._id === e.target.value)
-                        if (project) handleProjectChange(project)
-                      }}
-                      className="bg-dark-card border border-dark-border rounded-lg px-3 py-1 text-sm"
-                    >
-                      {projects.map(project => (
-                        <option key={project._id} value={project._id}>
-                          {project.name}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                </div>
-                <UserProfile onGitLabConfigured={() => setTriggerProjectSetup(true)} />
-              </div>
             </div>
-          </div>
-          
-          <Dashboard projectId={selectedProject._id} />
-        </div>
-      </>
-    )
-  }
 
-  // Empty state - no projects configured
+            <button
+              onClick={checkSystemHealth}
+              className="mt-6 bg-cyber-blue hover:bg-blue-600 text-white font-semibold py-2 px-6 rounded-lg transition-colors"
+            >
+              Retry System Check
+            </button>
+          </motion.div>
+        </div>
+      </div>
+    </>
+  )
+}
+
+// Dashboard with projects
+if (selectedProject) {
   return (
     <>
       <Head>
-        <title>SecureFlow AI - Add Your First Project</title>
+        <title>{`${selectedProject.name} - SecureFlow AI`}</title>
       </Head>
-      
+
       <div className="min-h-screen bg-dark-bg text-white">
+        {/* Header with project selector */}
         <div className="border-b border-dark-border bg-dark-card/50 backdrop-blur-sm">
           <div className="max-w-7xl mx-auto px-6 py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
                 <Shield className="w-8 h-8 text-cyber-blue" />
                 <h1 className="text-2xl font-bold">SecureFlow AI</h1>
+                <span className="text-gray-400">[Project: {selectedProject.name}]</span>
+                {projects.length > 1 && (
+                  <select
+                    value={selectedProject._id}
+                    onChange={(e) => {
+                      const project = projects.find(p => p._id === e.target.value)
+                      if (project) handleProjectChange(project)
+                    }}
+                    className="bg-dark-card border border-dark-border rounded-lg px-3 py-1 text-sm"
+                  >
+                    {projects.map(project => (
+                      <option key={project._id} value={project._id}>
+                        {project.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
-              <UserProfile onGitLabConfigured={() => setTriggerProjectSetup(true)} />
+              <div className="flex items-center space-x-4">
+                <motion.button
+                  onClick={() => setTriggerProjectSetup(true)}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors flex items-center"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Project
+                </motion.button>
+                <UserProfile onGitLabConfigured={() => setTriggerProjectSetup(true)} />
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="max-w-4xl mx-auto px-6 py-16">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center"
-          >
-            <GitBranch className="w-16 h-16 text-cyber-blue mx-auto mb-6" />
-            <h2 className="text-3xl font-bold mb-4">No Projects Configured</h2>
-            <p className="text-gray-400 mb-8">
-              Connect your GitLab projects to start monitoring your code security in real-time.
-            </p>
-
-            {!user.gitlabSettings?.apiToken ? (
-              <div className="bg-dark-card border border-orange-500/50 rounded-xl p-6 mb-8">
-                <Settings className="w-8 h-8 text-orange-400 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2 text-orange-400">GitLab Configuration Required</h3>
-                <p className="text-gray-400 mb-4">
-                  You need to configure your GitLab API token before adding projects.
-                </p>
-                <button
-                  onClick={() => {
-                    // This will be handled by the UserProfile component
-                    const settingsBtn = document.querySelector('[data-gitlab-settings]') as HTMLElement
-                    settingsBtn?.click()
-                  }}
-                  className="bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2 px-6 rounded-lg transition-colors"
-                >
-                  Configure GitLab Settings
-                </button>
-              </div>
-            ) : (
-              <div className="flex justify-center">
-                <ProjectSetup 
-                  onProjectCreated={handleProjectCreated} 
-                  triggerOpen={triggerProjectSetup}
-                />
-              </div>
-            )}
-
-            {error && (
-              <div className="mt-6 bg-red-500/10 border border-red-500/50 rounded-lg p-4">
-                <p className="text-red-400">{error}</p>
-              </div>
-            )}
-          </motion.div>
-        </div>
-
+        <Dashboard projectId={selectedProject._id} />
+        
+        {/* Project Setup Modal */}
+        {triggerProjectSetup && (
+          <ProjectSetup
+            onProjectCreated={handleProjectCreated}
+            triggerOpen={triggerProjectSetup}
+            onClose={() => setTriggerProjectSetup(false)}
+          />
+        )}
       </div>
     </>
   )
+}
+
+// Empty state - no projects configured
+return (
+  <>
+    <Head>
+      <title>SecureFlow AI - Add Your First Project</title>
+    </Head>
+
+    <div className="min-h-screen bg-dark-bg text-white">
+      <div className="border-b border-dark-border bg-dark-card/50 backdrop-blur-sm">
+        <div className="max-w-7xl mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <Shield className="w-8 h-8 text-cyber-blue" />
+              <h1 className="text-2xl font-bold">SecureFlow AI</h1>
+            </div>
+            <UserProfile onGitLabConfigured={() => setTriggerProjectSetup(true)} />
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-4xl mx-auto px-6 py-16">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center"
+        >
+          <div className="mb-8">
+            <motion.div
+              animate={{ 
+                scale: [1, 1.1, 1],
+                rotate: [0, 5, -5, 0]
+              }}
+              transition={{ 
+                duration: 3,
+                repeat: Infinity,
+                ease: "easeInOut"
+              }}
+              className="inline-block"
+            >
+              <GitBranch className="w-16 h-16 text-cyber-blue mx-auto mb-6" />
+            </motion.div>
+          </div>
+          
+          <h2 className="text-3xl font-bold mb-4">No Projects Configured</h2>
+          <p className="text-gray-400 mb-8 text-lg">
+            Connect your GitLab projects to start monitoring your code security in real-time.
+          </p>
+
+          {!user.gitlabSettings?.apiToken ? (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.2 }}
+              className="bg-gradient-to-r from-orange-500/10 to-red-500/10 border border-orange-500/50 rounded-xl p-8 mb-8 max-w-2xl mx-auto"
+            >
+              <div className="flex items-center justify-center mb-4">
+                <Settings className="w-8 h-8 text-orange-400 mr-3" />
+                <h3 className="text-xl font-semibold text-orange-400">GitLab Configuration Required</h3>
+              </div>
+              <p className="text-gray-300 mb-6 leading-relaxed">
+                You need to configure your GitLab API token before adding projects. This allows SecureFlow AI to access your repositories and set up webhooks for real-time analysis.
+              </p>
+              
+              <div className="space-y-4 text-left mb-6">
+                <div className="flex items-start space-x-3">
+                  <div className="w-6 h-6 bg-cyber-blue rounded-full flex items-center justify-center text-sm font-bold text-black mt-0.5">1</div>
+                  <div>
+                    <p className="text-white font-medium">Go to GitLab → User Settings → Access Tokens</p>
+                    <p className="text-gray-400 text-sm">Create a personal access token with 'api' scope</p>
+                  </div>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="w-6 h-6 bg-cyber-blue rounded-full flex items-center justify-center text-sm font-bold text-black mt-0.5">2</div>
+                  <div>
+                    <p className="text-white font-medium">Copy the token and configure it in SecureFlow AI</p>
+                    <p className="text-gray-400 text-sm">Click the button below to open settings</p>
+                  </div>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="w-6 h-6 bg-cyber-blue rounded-full flex items-center justify-center text-sm font-bold text-black mt-0.5">3</div>
+                  <div>
+                    <p className="text-white font-medium">Test connection and start adding projects</p>
+                    <p className="text-gray-400 text-sm">Verify your token works correctly</p>
+                  </div>
+                </div>
+              </div>
+
+              <motion.button
+                onClick={() => {
+                  // This will be handled by the UserProfile component
+                  const settingsBtn = document.querySelector('[data-gitlab-settings]') as HTMLElement
+                  settingsBtn?.click()
+                }}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-semibold py-3 px-6 rounded-lg transition-all flex items-center mx-auto"
+              >
+                <Settings className="w-5 h-5 mr-2" />
+                Configure GitLab Settings
+                <ArrowRight className="w-5 h-5 ml-2" />
+              </motion.button>
+            </motion.div>
+          ) : (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="flex flex-col items-center"
+            >
+              <div className="bg-dark-card border border-dark-border rounded-xl p-8 mb-8 max-w-lg">
+                <div className="text-center">
+                  <div className="w-12 h-12 bg-cyber-green/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Shield className="w-6 h-6 text-cyber-green" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-cyber-green mb-2">GitLab Connected!</h3>
+                  <p className="text-gray-400 mb-4">
+                    Your GitLab integration is ready. Now you can add your first project to start monitoring.
+                  </p>
+                </div>
+              </div>
+
+              <ProjectSetup
+                onProjectCreated={handleProjectCreated}
+                triggerOpen={triggerProjectSetup}
+                buttonText="Add Your First Project"
+                buttonIcon={<Plus className="w-5 h-5 mr-2" />}
+              />
+            </motion.div>
+          )}
+
+          {error && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="mt-6 bg-red-500/10 border border-red-500/50 rounded-lg p-4 max-w-lg mx-auto"
+            >
+              <p className="text-red-400">{error}</p>
+              <button
+                onClick={loadProjects}
+                className="mt-2 text-cyber-blue hover:text-blue-400 text-sm underline"
+              >
+                Try again
+              </button>
+            </motion.div>
+          )}
+
+          {loadingProjects && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="mt-6 flex items-center justify-center"
+            >
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                className="w-8 h-8 border-2 border-cyber-blue border-t-transparent rounded-full mr-3"
+              />
+              <span className="text-gray-400">Loading projects...</span>
+            </motion.div>
+          )}
+        </motion.div>
+      </div>
+    </div>
+  </>
+)
 }

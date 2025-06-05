@@ -1,3 +1,62 @@
+// User Types
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  role: 'ADMIN' | 'DEVELOPER' | 'SECURITY_ANALYST' | 'VIEWER';
+  avatar?: string;
+  projects: string[];
+  preferences: UserPreferences;
+  gitlabSettings?: GitLabSettings;
+  lastLogin?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UserPreferences {
+  theme: 'light' | 'dark' | 'system';
+  notifications: boolean;
+  autoRefresh: boolean;
+  dashboardLayout: 'compact' | 'detailed';
+  defaultTimeRange: '1h' | '24h' | '7d' | '30d';
+}
+
+export interface GitLabSettings {
+  apiToken: string;
+  baseUrl: string;
+}
+
+// Project Types
+export interface Project {
+  _id: string;
+  name: string;
+  gitlabProjectId: string;
+  repositoryUrl: string;
+  branch: string;
+  scanFrequency: 'ON_PUSH' | 'DAILY' | 'WEEKLY';
+  notificationSettings: NotificationSettings;
+  excludePaths: string[];
+  scanTypes: string[];
+  complianceFrameworks: string[];
+  webhookSecret: string;
+  webhookId?: string;
+  lastScanDate?: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface NotificationSettings {
+  email: boolean;
+  slack: boolean;
+  webhook: boolean;
+  emailAddresses: string[];
+  slackChannel?: string;
+  webhookUrl?: string;
+  minSeverity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+}
+
+// Analysis Types
 export interface SecurityAnalysis {
   id: string;
   projectId: string;
@@ -11,44 +70,37 @@ export interface SecurityAnalysis {
   remediationSteps: RemediationStep[];
   complianceScore: ComplianceScore;
   status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED';
-  stage?: AnalysisStage;
+  stage?: string;
   progress?: number;
   startedAt?: string;
   completedAt?: string;
   failedAt?: string;
   triggeredBy?: 'manual' | 'webhook' | 'scheduled';
-  userId?: string;
+  userId: string;
+  changedFiles?: string[];
+  commitMessage?: string;
+  author?: GitAuthor;
+  error?: string;
 }
 
 export interface Vulnerability {
   id: string;
-  type: VulnerabilityType;
+  type: string;
   severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
   file: string;
-  line: number;
+  line?: number;
   column?: number;
   description: string;
   suggestedFix: string;
-  owaspCategory: string;
-  cveId?: string;
+  owaspCategory?: string;
+  cweId?: string;
   confidence: number;
   exploitability: number;
   impact: number;
-  fixComplexity: 'LOW' | 'MEDIUM' | 'HIGH';
+  references?: string[];
+  codeSnippet?: string;
+  fixedCode?: string;
 }
-
-export type VulnerabilityType =
-  | 'SQL_INJECTION'
-  | 'XSS'
-  | 'CSRF'
-  | 'INSECURE_DESERIALIZATION'
-  | 'BROKEN_AUTHENTICATION'
-  | 'SENSITIVE_DATA_EXPOSURE'
-  | 'XML_EXTERNAL_ENTITIES'
-  | 'BROKEN_ACCESS_CONTROL'
-  | 'SECURITY_MISCONFIGURATION'
-  | 'VULNERABLE_COMPONENTS'
-  | 'INSUFFICIENT_LOGGING';
 
 export interface ThreatModel {
   nodes: ThreatNode[];
@@ -59,30 +111,36 @@ export interface ThreatModel {
 
 export interface ThreatNode {
   id: string;
-  type: 'API' | 'DATABASE' | 'AUTH_SERVICE' | 'FILE_SYSTEM' | 'EXTERNAL_SERVICE';
   label: string;
+  type: 'service' | 'database' | 'api' | 'frontend' | 'external';
+  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
   vulnerabilities: string[];
-  riskLevel: number;
-  position: { x: number; y: number; z: number };
+  position?: { x: number; y: number; z: number };
+  metadata?: Record<string, any>;
 }
 
 export interface ThreatEdge {
+  id: string;
   source: string;
   target: string;
-  dataFlow: string;
+  type: 'data_flow' | 'api_call' | 'dependency' | 'trust_boundary';
   encrypted: boolean;
   authenticated: boolean;
-  riskLevel: number;
+  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  protocols?: string[];
+  metadata?: Record<string, any>;
 }
 
 export interface AttackVector {
   id: string;
   name: string;
   description: string;
+  severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
   likelihood: number;
   impact: number;
   mitigations: string[];
-  path: string[];
+  affectedNodes: string[];
+  killChain: string[];
 }
 
 export interface AttackSurface {
@@ -91,19 +149,22 @@ export interface AttackSurface {
   outputPoints: number;
   externalDependencies: number;
   privilegedFunctions: number;
+  score: number;
 }
 
 export interface RemediationStep {
   id: string;
+  vulnerabilityId: string;
   title: string;
   description: string;
   priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
-  effort: 'TRIVIAL' | 'MINOR' | 'MAJOR' | 'EXTENSIVE';
+  effort: 'EASY' | 'MEDIUM' | 'HARD';
   category: 'CODE_CHANGE' | 'CONFIGURATION' | 'INFRASTRUCTURE' | 'PROCESS';
-  files: string[];
-  estimatedTime: string;
-  dependencies: string[];
-  autoFixAvailable: boolean;
+  steps: string[];
+  codeExample?: string;
+  references?: string[];
+  estimatedTime?: string;
+  prerequisites?: string[];
 }
 
 export interface ComplianceScore {
@@ -112,80 +173,203 @@ export interface ComplianceScore {
   sox: number;
   gdpr: number;
   iso27001: number;
+  [key: string]: number;
 }
 
-export interface ProjectConfig {
+export interface GitAuthor {
+  name: string;
+  email: string;
+  avatar?: string;
+}
+
+// Analysis Progress Types
+export interface AnalysisProgress {
+  stage: 'INITIALIZING' | 'FETCHING_CODE' | 'STATIC_ANALYSIS' | 'AI_ANALYSIS' | 'THREAT_MODELING' | 'COMPLETED';
+  progress: number;
+  message: string;
+  startTime: string;
+  estimatedCompletion?: string;
+  currentFile?: string;
+  totalFiles?: number;
+  processedFiles?: number;
+}
+
+// Real-time Feed Types
+export interface AnalysisFeedItem {
   id: string;
+  timestamp: string;
+  type: 'info' | 'warning' | 'error' | 'success';
+  message: string;
+  details?: string;
+  file?: string;
+  line?: number;
+  severity?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  icon?: string;
+}
+
+// Webhook Types
+export interface WebhookEvent {
+  id: string;
+  projectId: string;
+  eventType: 'push' | 'merge_request' | 'tag_push';
+  timestamp: string;
+  triggeredBy: string;
+  commitHash: string;
+  branch: string;
+  status: 'received' | 'processing' | 'completed' | 'failed';
+  analysisId?: string;
+  error?: string;
+  payload?: Record<string, any>;
+}
+
+// File Types
+export interface ProjectFile {
+  path: string;
+  name: string;
+  type: 'file' | 'directory';
+  size?: number;
+  lastModified?: string;
+  riskLevel?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  vulnerabilityCount?: number;
+  language?: string;
+  content?: string;
+}
+
+// Dashboard Types
+export interface DashboardStats {
+  totalProjects: number;
+  totalAnalyses: number;
+  averageSecurityScore: number;
+  criticalVulnerabilities: number;
+  highVulnerabilities: number;
+  mediumVulnerabilities: number;
+  lowVulnerabilities: number;
+  recentAnalyses: SecurityAnalysis[];
+  trendData: TrendDataPoint[];
+}
+
+export interface TrendDataPoint {
+  date: string;
+  securityScore: number;
+  vulnerabilities: number;
+  projects: number;
+}
+
+// System Types
+export interface SystemHealth {
+  status: 'healthy' | 'degraded' | 'error';
+  timestamp: string;
+  version: string;
+  database: string;
+  services: {
+    mongodb: string;
+    ai: string;
+  };
+  details?: {
+    environment: {
+      mongodbUri: boolean;
+      geminiApiKey: boolean;
+      jwtSecret: boolean;
+      clientUrl: boolean;
+    };
+    errors: string[];
+  };
+}
+
+export interface SystemMetrics {
+  uptime: number;
+  memory: {
+    rss: number;
+    heapTotal: number;
+    heapUsed: number;
+    external: number;
+  };
+  database: {
+    state: number;
+    name: string;
+  };
+  environment: string;
+  timestamp: string;
+}
+
+// API Response Types
+export interface APIResponse<T = any> {
+  success: boolean;
+  data?: T;
+  error?: string;
+  message?: string;
+}
+
+export interface PaginatedResponse<T = any> {
+  data: T[];
+  total: number;
+  page: number;
+  limit: number;
+  hasNext: boolean;
+  hasPrev: boolean;
+}
+
+// Error Types
+export interface APIError {
+  message: string;
+  code?: string;
+  field?: string;
+  details?: Record<string, any>;
+}
+
+// Form Types
+export interface LoginForm {
+  email: string;
+  password: string;
+}
+
+export interface RegisterForm {
+  name: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
+}
+
+export interface ProjectForm {
   name: string;
   gitlabProjectId: string;
   repositoryUrl: string;
   branch: string;
   scanFrequency: 'ON_PUSH' | 'DAILY' | 'WEEKLY';
-  notificationSettings: NotificationSettings;
-  excludePaths: string[];
-  scanTypes: ScanType[];
-  complianceFrameworks: string[];
-  lastScanDate?: string;
-  webhookId?: string;
-  webhookSecret?: string;
-  createdBy?: string;
-  createdAt?: string;
-  updatedAt?: string;
-  updatedBy?: string;
+  notificationEmail: string;
+  scanTypes: string[];
+  webhookSecret: string;
 }
 
-export interface NotificationSettings {
-  email: boolean;
-  slack: boolean;
-  webhook: boolean;
-  emailAddresses: string[];
-  slackChannel?: string;
-  webhookUrl?: string;
-  minSeverity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+// Filter and Search Types
+export interface VulnerabilityFilter {
+  severity?: ('LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL')[];
+  type?: string[];
+  file?: string;
+  dateRange?: {
+    start: string;
+    end: string;
+  };
+  status?: 'open' | 'fixed' | 'ignored';
 }
 
-export type ScanType =
-  | 'STATIC_ANALYSIS'
-  | 'DEPENDENCY_SCAN'
-  | 'SECRET_DETECTION'
-  | 'LICENSE_COMPLIANCE'
-  | 'CONTAINER_SCAN'
-  | 'INFRASTRUCTURE_SCAN';
-
-export interface AnalysisProgress {
-  stage: AnalysisStage;
-  progress: number;
-  message: string;
-  startTime: string;
-  estimatedCompletion?: string;
+export interface SearchQuery {
+  query: string;
+  filters?: Record<string, any>;
+  sort?: {
+    field: string;
+    direction: 'asc' | 'desc';
+  };
+  page?: number;
+  limit?: number;
 }
 
-export type AnalysisStage =
-  | 'INITIALIZING'
-  | 'FETCHING_CODE'
-  | 'STATIC_ANALYSIS'
-  | 'AI_ANALYSIS'
-  | 'THREAT_MODELING'
-  | 'GENERATING_REPORT'
-  | 'COMPLETED'
-  | 'FAILED';
-
-export interface User {
-  id: string;
-  email: string;
-  name: string;
-  role: 'ADMIN' | 'DEVELOPER' | 'SECURITY_ANALYST' | 'VIEWER';
-  projects: string[];
-  preferences: UserPreferences;
-  lastLogin: string;
-  createdAt?: string;
-  getIdToken?: () => Promise<string>;
-}
-
-export interface UserPreferences {
-  theme: 'light' | 'dark' | 'system';
-  notifications: boolean;
-  autoRefresh: boolean;
-  dashboardLayout: 'compact' | 'detailed';
-  defaultTimeRange: '1h' | '24h' | '7d' | '30d';
-}
+// Export all types for easy importing
+export type {
+  // Re-export common types
+  User as UserType,
+  Project as ProjectType,
+  SecurityAnalysis as AnalysisType,
+  Vulnerability as VulnerabilityType,
+  ThreatModel as ThreatModelType,
+};

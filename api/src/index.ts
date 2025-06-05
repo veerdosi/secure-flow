@@ -24,7 +24,14 @@ const PORT = process.env.PORT || 3001;
 app.set('trust proxy', 1);
 
 // Connect to MongoDB
-connectDB();
+(async () => {
+  try {
+    await connectDB();
+    logger.info('Database connected successfully');
+  } catch (error) {
+    logger.error('Failed to connect to database:', error);
+  }
+})();
 
 // Rate limiting with proper configuration for serverless
 const limiter = rateLimit({
