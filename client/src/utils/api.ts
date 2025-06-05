@@ -9,6 +9,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 30000, // 30 second timeout
 });
 
 // Request interceptor to add auth token
@@ -24,11 +25,25 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    // Enhanced error handling
+    if (error.code === 'ECONNREFUSED' || error.code === 'NETWORK_ERROR') {
+      console.error('❌ API Server is not running. Please start the backend server.');
+      throw new Error('Backend server is not running. Please check if the API server is started.');
+    }
+    
     if (error.response?.status === 401) {
       // Token expired or invalid, clear it
       Cookies.remove('auth_token');
-      window.location.href = '/';
+      if (typeof window !== 'undefined') {
+        window.location.href = '/';
+      }
     }
+    
+    if (error.response?.status >= 500) {
+      console.error('❌ Server error:', error.response.data);
+      throw new Error('Server error occurred. Please try again later.');
+    }
+    
     return Promise.reject(error);
   }
 );
@@ -144,6 +159,37 @@ export const webhookAPI = {
 
   regenerateSecret: async (projectId: string) => {
     const response = await api.post(`/api/webhooks/regenerate-secret/${projectId}`);
+    return response.data;
+  },
+};
+
+// GitLab API calls
+export const gitlabAPI = {
+  updateSettings: async (settings: { apiToken: string; baseUrl: string }) => {
+    const response = await api.patch('/api/auth/gitlab-settings', settings);
+    return response.data;
+  },
+
+  testConnection: async (settings: { apiToken: string; baseUrl: string }) => {
+    const response = await api.post('/api/auth/gitlab-test', settings);
+    return response.data;
+  },
+
+  getProjects: async () => {
+    const response = await api.get('/api/auth/gitlab-projects');
+    return response.data;
+  },
+};
+
+// System API calls
+export const systemAPI = {
+  checkHealth: async () => {
+    const response = await api.get('/health');
+    return response.data;
+  },
+
+  validateCredentials: async () => {
+    const response = await api.get('/api/system/validate-credentials');
     return response.data;
   },
 };

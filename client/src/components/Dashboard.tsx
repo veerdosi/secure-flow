@@ -4,6 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Shield, AlertTriangle, TrendingUp, Clock, GitBranch, Zap } from 'lucide-react';
 import { SecurityAnalysis, AnalysisProgress } from '@/types';
+import { projectAPI, analysisAPI } from '@/utils/api';
+import { UserProfile } from './UserProvider';
 import SecurityScoreRing from './SecurityScoreRing';
 import ThreatLevelIndicator from './ThreatLevelIndicator';
 import RealTimeAnalysisFeed from './RealTimeAnalysisFeed';
@@ -17,74 +19,116 @@ interface DashboardProps {
 const Dashboard: React.FC<DashboardProps> = ({ projectId }) => {
   const [analysis, setAnalysis] = useState<SecurityAnalysis | null>(null);
   const [progress, setProgress] = useState<AnalysisProgress | null>(null);
+  const [project, setProject] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    // Simulate real-time data updates
-    const interval = setInterval(() => {
-      // In real implementation, this would connect to Firebase/WebSocket
-      fetchLatestAnalysis();
-    }, 5000);
-
+    fetchProjectData();
     fetchLatestAnalysis();
+    
+    // Set up real-time updates
+    const interval = setInterval(() => {
+      fetchLatestAnalysis();
+    }, 10000); // Check every 10 seconds
+
     return () => clearInterval(interval);
   }, [projectId]);
 
+  const fetchProjectData = async () => {
+    try {
+      const projectData = await projectAPI.getById(projectId);
+      setProject(projectData);
+    } catch (error: any) {
+      console.error('Failed to fetch project:', error);
+      setError('Failed to load project data');
+    }
+  };
+
   const fetchLatestAnalysis = async () => {
     try {
-      // Mock data for demo - replace with actual Firebase call
-      const mockAnalysis: SecurityAnalysis = {
-        id: 'analysis_uuid',
-        projectId: 'webapp-api',
-        commitHash: 'abc123def',
-        timestamp: new Date().toISOString(),
-        securityScore: 87,
-        threatLevel: 'MEDIUM',
-        vulnerabilities: [
-          {
-            id: 'vuln_1',
-            type: 'SQL_INJECTION',
-            severity: 'HIGH',
-            file: 'auth.py',
-            line: 47,
-            description: 'SQL injection in login endpoint',
-            suggestedFix: 'Use parameterized queries',
-            owaspCategory: 'A03:2021',
-            confidence: 0.95,
-            exploitability: 0.8,
-            impact: 0.9,
-            fixComplexity: 'MEDIUM'
-          }
-        ],
-        threatModel: {
-          nodes: [],
-          edges: [],
-          attackVectors: [],
-          attackSurface: {
-            endpoints: 12,
-            inputPoints: 8,
-            outputPoints: 4,
-            externalDependencies: 6,
-            privilegedFunctions: 3
-          }
-        },
-        aiAnalysis: 'Critical SQL injection vulnerability detected...',
-        remediationSteps: [],
-        complianceScore: {
-          owasp: 0.78,
-          pci: 0.65,
-          sox: 0.72,
-          gdpr: 0.85,
-          iso27001: 0.71
-        },
-        status: 'COMPLETED'
-      };
+      const analyses = await analysisAPI.getByProject(projectId, 1);
+      
+      if (analyses && analyses.length > 0) {
+        const latestAnalysis = analyses[0];
+        
+        // Convert backend data to frontend format
+        const formattedAnalysis: SecurityAnalysis = {
+          id: latestAnalysis._id,
+          projectId: latestAnalysis.projectId,
+          commitHash: latestAnalysis.commitHash,
+          timestamp: latestAnalysis.createdAt,
+          securityScore: latestAnalysis.securityScore || 0,
+          threatLevel: latestAnalysis.threatLevel || 'LOW',
+          vulnerabilities: latestAnalysis.vulnerabilities || [],
+          threatModel: latestAnalysis.threatModel || {
+            nodes: [],
+            edges: [],
+            attackVectors: [],
+            attackSurface: {
+              endpoints: 0,
+              inputPoints: 0,
+              outputPoints: 0,
+              externalDependencies: 0,
+              privilegedFunctions: 0
+            }
+          },
+          aiAnalysis: latestAnalysis.aiAnalysis || '',
+          remediationSteps: latestAnalysis.remediationSteps || [],
+          complianceScore: latestAnalysis.complianceScore || {
+            owasp: 0,
+            pci: 0,
+            sox: 0,
+            gdpr: 0,
+            iso27001: 0
+          },
+          status: latestAnalysis.status
+        };
 
-      setAnalysis(mockAnalysis);
+        setAnalysis(formattedAnalysis);
+
+        // Set progress if analysis is still running
+        if (latestAnalysis.status === 'IN_PROGRESS') {
+          setProgress({
+            stage: latestAnalysis.stage || 'Processing...',
+            progress: latestAnalysis.progress || 0,
+            message: `Analyzing ${latestAnalysis.commitHash?.substring(0, 8)}...`
+          });
+        } else {
+          setProgress(null);
+        }
+      } else {
+        // No analysis found - show empty state
+        setAnalysis(null);
+      }
+      
       setIsLoading(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to fetch analysis:', error);
+      setError('Failed to load analysis data');
       setIsLoading(false);
+    }
+  };
+
+  const startManualScan = async () => {
+    try {
+      const response = await analysisAPI.start({
+        projectId,
+        triggeredBy: 'manual'
+      });
+      
+      // Start polling for progress
+      setProgress({
+        stage: 'Initializing scan...',
+        progress: 0,
+        message: 'Starting security analysis'
+      });
+      
+      // Refresh data immediately
+      setTimeout(fetchLatestAnalysis, 1000);
+    } catch (error: any) {
+      console.error('Failed to start scan:', error);
+      setError('Failed to start security scan');
     }
   };
 
@@ -100,6 +144,70 @@ const Dashboard: React.FC<DashboardProps> = ({ projectId }) => {
     );
   }
 
+  // Show empty state if no analysis exists
+  if (!analysis && !progress && !isLoading) {
+    return (
+      <div className="min-h-screen bg-dark-bg text-white">
+        {/* Header */}
+        <div className="border-b border-dark-border bg-dark-card/50 backdrop-blur-sm">
+          <div className="max-w-7xl mx-auto px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <Shield className="w-8 h-8 text-cyber-blue" />
+                <h1 className="text-2xl font-bold">SecureFlow AI</h1>
+                <span className="text-gray-400">[Project: {project?.name || 'Loading...'}]</span>
+              </div>
+              <div className="flex items-center space-x-4">
+                <motion.button
+                  onClick={startManualScan}
+                  disabled={!!progress}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="bg-cyber-blue hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-2 px-4 rounded-lg transition-colors flex items-center"
+                >
+                  <Zap className="w-4 h-4 mr-2" />
+                  {progress ? 'Scanning...' : 'Start Scan'}
+                </motion.button>
+                <UserProfile />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Empty State */}
+        <div className="max-w-4xl mx-auto px-6 py-16">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center"
+          >
+            <Shield className="w-16 h-16 text-gray-600 mx-auto mb-6" />
+            <h2 className="text-3xl font-bold mb-4">No Security Analysis Available</h2>
+            <p className="text-gray-400 mb-8">
+              Start your first security scan to see real-time analysis, threat detection, and vulnerability insights.
+            </p>
+
+            <motion.button
+              onClick={startManualScan}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="bg-cyber-blue hover:bg-blue-600 text-white font-bold py-4 px-8 rounded-lg text-lg transition-colors inline-flex items-center"
+            >
+              <Zap className="w-6 h-6 mr-2" />
+              Run Security Analysis
+            </motion.button>
+
+            {error && (
+              <div className="mt-6 bg-red-500/10 border border-red-500/50 rounded-lg p-4">
+                <p className="text-red-400">{error}</p>
+              </div>
+            )}
+          </motion.div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-dark-bg text-white">
       {/* Header */}
@@ -109,17 +217,32 @@ const Dashboard: React.FC<DashboardProps> = ({ projectId }) => {
             <div className="flex items-center space-x-4">
               <Shield className="w-8 h-8 text-cyber-blue" />
               <h1 className="text-2xl font-bold">SecureFlow AI</h1>
-              <span className="text-gray-400">[Project: {analysis?.projectId}]</span>
+              <span className="text-gray-400">[Project: {project?.name || 'Loading...'}]</span>
             </div>
             <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2 text-sm text-gray-400">
-                <GitBranch className="w-4 h-4" />
-                <span>{analysis?.commitHash?.substring(0, 8)}</span>
-              </div>
-              <div className="flex items-center space-x-2 text-sm text-gray-400">
-                <Clock className="w-4 h-4" />
-                <span>Last scan: {analysis?.timestamp ? new Date(analysis.timestamp).toLocaleTimeString() : 'Never'}</span>
-              </div>
+              {analysis && (
+                <>
+                  <div className="flex items-center space-x-2 text-sm text-gray-400">
+                    <GitBranch className="w-4 h-4" />
+                    <span>{analysis.commitHash?.substring(0, 8) || 'No commits'}</span>
+                  </div>
+                  <div className="flex items-center space-x-2 text-sm text-gray-400">
+                    <Clock className="w-4 h-4" />
+                    <span>Last scan: {analysis.timestamp ? new Date(analysis.timestamp).toLocaleTimeString() : 'Never'}</span>
+                  </div>
+                </>
+              )}
+              <motion.button
+                onClick={startManualScan}
+                disabled={!!progress}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="bg-cyber-blue hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-2 px-4 rounded-lg transition-colors flex items-center"
+              >
+                <Zap className="w-4 h-4 mr-2" />
+                {progress ? 'Scanning...' : 'Start Scan'}
+              </motion.button>
+              <UserProfile />
             </div>
           </div>
         </div>

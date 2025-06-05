@@ -1,8 +1,8 @@
-import { VertexAI } from '@google-cloud/vertexai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import logger from '../utils/logger';
 
 class AIAnalysisService {
-  private vertexAI: VertexAI | null = null;
+  private genAI: GoogleGenerativeAI | null = null;
   private model: any = null;
 
   constructor() {
@@ -10,35 +10,27 @@ class AIAnalysisService {
   }
 
   private initializeAI() {
+    // Check if Gemini API key is configured
+    if (!process.env.GEMINI_API_KEY) {
+      throw new Error('GEMINI_API_KEY environment variable is required for AI analysis');
+    }
+
     try {
-      // Check if Google Cloud is configured
-      if (!process.env.GOOGLE_CLOUD_PROJECT) {
-        logger.warn('Google Cloud not configured - AI analysis will use mock data');
-        return;
-      }
-
-      this.vertexAI = new VertexAI({
-        project: process.env.GOOGLE_CLOUD_PROJECT,
-        location: process.env.VERTEX_AI_LOCATION || 'us-central1',
+      this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+      this.model = this.genAI.getGenerativeModel({ 
+        model: process.env.GEMINI_MODEL || 'gemini-pro' 
       });
 
-      this.model = this.vertexAI.preview.getGenerativeModel({
-        model: process.env.VERTEX_AI_MODEL || 'gemini-pro',
-      });
-
-      logger.info('✅ Vertex AI initialized successfully');
+      logger.info('✅ Gemini AI initialized successfully');
     } catch (error) {
-      logger.warn('⚠️  Vertex AI not available - using mock analysis:', error.message);
-      this.vertexAI = null;
-      this.model = null;
+      logger.error('❌ Failed to initialize Gemini AI:', error);
+      throw new Error(`Gemini AI initialization failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
   async analyzeCode(codeContent: string, filePath: string): Promise<any> {
-    // If no AI configured, return mock data
     if (!this.model) {
-      logger.info('Using mock AI analysis (no Google Cloud configured)');
-      return this.getMockAnalysis(codeContent, filePath);
+      throw new Error('Gemini AI model not initialized. Check GEMINI_API_KEY configuration.');
     }
 
     try {
@@ -81,25 +73,25 @@ class AIAnalysisService {
       `;
 
       const result = await this.model.generateContent(prompt);
-      const response = result.response;
+      const response = await result.response;
 
       try {
         const analysis = JSON.parse(response.text());
-        logger.info('✅ Real AI analysis completed');
+        logger.info('✅ Real AI analysis completed with Gemini');
         return analysis;
       } catch (parseError) {
-        logger.warn('Failed to parse AI response as JSON, using mock data');
-        return this.getMockAnalysis(codeContent, filePath);
+        logger.error('Failed to parse AI response as JSON:', parseError);
+        throw new Error(`AI response parsing failed: ${parseError instanceof Error ? parseError.message : 'Invalid JSON response'}`);
       }
     } catch (error) {
-      logger.error('AI analysis failed, using mock data:', error);
-      return this.getMockAnalysis(codeContent, filePath);
+      logger.error('AI analysis failed:', error);
+      throw new Error(`AI analysis failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
   async generateThreatModel(codeFiles: string[], projectStructure: any): Promise<any> {
     if (!this.model) {
-      return this.getDefaultThreatModel();
+      throw new Error('Gemini AI model not initialized. Check GEMINI_API_KEY configuration.');
     }
 
     try {
@@ -119,16 +111,17 @@ class AIAnalysisService {
       `;
 
       const result = await this.model.generateContent(prompt);
-      return JSON.parse(result.response.text());
+      const response = await result.response;
+      return JSON.parse(response.text());
     } catch (error) {
       logger.error('Threat model generation failed:', error);
-      return this.getDefaultThreatModel();
+      throw new Error(`Threat model generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
   async generateRemediationSteps(vulnerabilities: any[]): Promise<any[]> {
     if (!this.model) {
-      return this.getMockRemediationSteps(vulnerabilities);
+      throw new Error('Gemini AI model not initialized. Check GEMINI_API_KEY configuration.');
     }
 
     try {
@@ -146,98 +139,14 @@ class AIAnalysisService {
       `;
 
       const result = await this.model.generateContent(prompt);
-      return JSON.parse(result.response.text());
+      const response = await result.response;
+      return JSON.parse(response.text());
     } catch (error) {
       logger.error('Remediation generation failed:', error);
-      return this.getMockRemediationSteps(vulnerabilities);
+      throw new Error(`Remediation generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
-  private getMockAnalysis(codeContent: string, filePath: string) {
-    const hasAuthCode = codeContent.includes('login') || codeContent.includes('auth') || codeContent.includes('password');
-    const hasSqlCode = codeContent.includes('SELECT') || codeContent.includes('sql') || codeContent.includes('query');
-
-    const vulnerabilities = [];
-    let securityScore = 85;
-
-    if (hasAuthCode && hasSqlCode) {
-      vulnerabilities.push({
-        type: 'SQL_INJECTION',
-        severity: 'HIGH',
-        line: Math.floor(Math.random() * 100) + 1,
-        description: 'Potential SQL injection in authentication logic',
-        suggestedFix: 'Use parameterized queries with prepared statements',
-        owaspCategory: 'A03:2021',
-        confidence: 0.85,
-        exploitability: 0.7,
-        impact: 0.9
-      });
-      securityScore -= 20;
-    }
-
-    if (hasAuthCode) {
-      vulnerabilities.push({
-        type: 'BROKEN_AUTHENTICATION',
-        severity: 'MEDIUM',
-        line: Math.floor(Math.random() * 50) + 1,
-        description: 'Weak authentication implementation detected',
-        suggestedFix: 'Implement proper session management and MFA',
-        owaspCategory: 'A02:2021',
-        confidence: 0.7,
-        exploitability: 0.6,
-        impact: 0.8
-      });
-      securityScore -= 10;
-    }
-
-    return {
-      vulnerabilities,
-      securityScore: Math.max(securityScore, 0),
-      threatLevel: vulnerabilities.some(v => v.severity === 'HIGH') ? 'HIGH' :
-                   vulnerabilities.some(v => v.severity === 'MEDIUM') ? 'MEDIUM' : 'LOW',
-      aiAnalysis: `Mock analysis of ${filePath}: Found ${vulnerabilities.length} potential security issues. ${
-        this.model ? 'Real AI analysis failed, showing mock results.' : 'Google Cloud not configured, showing mock results.'
-      }`
-    };
-  }
-
-  private getMockRemediationSteps(vulnerabilities: any[]) {
-    return vulnerabilities.map((v, i) => ({
-      id: `rem_${i + 1}`,
-      title: `Fix ${v.type.replace('_', ' ')} vulnerability`,
-      description: v.suggestedFix || 'Apply security best practices',
-      priority: v.severity,
-      effort: 'MEDIUM',
-      category: 'CODE_CHANGE',
-      files: [v.file || 'unknown'],
-      estimatedTime: '1-2 hours',
-      autoFixAvailable: false,
-    }));
-  }
-
-  private getDefaultThreatModel() {
-    return {
-      nodes: [
-        {
-          id: 'api_gateway',
-          type: 'API',
-          label: 'API Gateway',
-          vulnerabilities: [],
-          riskLevel: 0.5,
-          position: { x: 0, y: 0, z: 0 }
-        }
-      ],
-      edges: [],
-      attackVectors: [],
-      attackSurface: {
-        endpoints: 0,
-        inputPoints: 0,
-        outputPoints: 0,
-        externalDependencies: 0,
-        privilegedFunctions: 0
-      }
-    };
-  }
 }
 
 export default new AIAnalysisService();

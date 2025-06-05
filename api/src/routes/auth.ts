@@ -56,7 +56,7 @@ router.post('/register',
       const token = jwt.sign(
         { userId: user._id, email: user.email },
         process.env.JWT_SECRET || 'dev-secret',
-        { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+        { expiresIn: '7d' }
       );
 
       logger.info(`User registered: ${email}`);
@@ -113,7 +113,7 @@ router.post('/login',
       const token = jwt.sign(
         { userId: user._id, email: user.email },
         process.env.JWT_SECRET || 'dev-secret',
-        { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+        { expiresIn: '7d' }
       );
 
       logger.info(`User logged in: ${email}`);
@@ -200,6 +200,115 @@ router.patch('/preferences',
     } catch (error) {
       logger.error('Update preferences error:', error);
       res.status(500).json({ error: 'Failed to update preferences' });
+    }
+  }
+);
+
+// Update GitLab settings
+router.patch('/gitlab-settings',
+  [
+    body('apiToken').notEmpty().withMessage('API token is required'),
+    body('baseUrl').isURL().withMessage('Valid GitLab URL is required'),
+  ],
+  async (req: Request, res: Response) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ error: 'No token provided' });
+      }
+
+      const token = authHeader.substring(7);
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'dev-secret') as any;
+
+      const user = await User.findById(decoded.userId);
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      const { apiToken, baseUrl } = req.body;
+
+      // Update GitLab settings
+      user.gitlabSettings = {
+        apiToken,
+        baseUrl: baseUrl.replace(/\/$/, '') // Remove trailing slash
+      };
+      await user.save();
+
+      logger.info(`GitLab settings updated for user: ${user.email}`);
+
+      res.json({
+        message: 'GitLab settings updated successfully',
+        gitlabSettings: {
+          baseUrl: user.gitlabSettings.baseUrl,
+          connected: true
+        }
+      });
+    } catch (error) {
+      logger.error('Update GitLab settings error:', error);
+      res.status(500).json({ error: 'Failed to update GitLab settings' });
+    }
+  }
+);
+
+// Test GitLab connection
+router.post('/gitlab-test',
+  [
+    body('apiToken').notEmpty().withMessage('API token is required'),
+    body('baseUrl').isURL().withMessage('Valid GitLab URL is required'),
+  ],
+  async (req: Request, res: Response) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      const { apiToken, baseUrl } = req.body;
+      const axios = require('axios');
+
+      // Test GitLab API connection
+      const response = await axios.get(`${baseUrl.replace(/\/$/, '')}/api/v4/user`, {
+        headers: {
+          'Authorization': `Bearer ${apiToken}`
+        },
+        timeout: 10000
+      });
+
+      res.json({
+        success: true,
+        message: 'Successfully connected to GitLab!',
+        user: {
+          username: response.data.username,
+          name: response.data.name,
+          email: response.data.email
+        }
+      });
+    } catch (error: any) {
+      logger.error('GitLab test connection error:', error);
+      
+      if (error.response?.status === 401) {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'Invalid GitLab API token. Please check your token and try again.' 
+        });
+      }
+      
+      if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'Cannot connect to GitLab server. Please check the URL and try again.' 
+        });
+      }
+
+      res.status(400).json({ 
+        success: false, 
+        error: 'Failed to connect to GitLab. Please check your settings and try again.' 
+      });
     }
   }
 );

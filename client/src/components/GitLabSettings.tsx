@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Settings, Eye, EyeOff, ExternalLink, CheckCircle } from 'lucide-react';
-import { authAPI } from '@/utils/api';
+import { gitlabAPI } from '@/utils/api';
 
 interface GitLabSettingsProps {
   isOpen: boolean;
@@ -25,11 +25,9 @@ const GitLabSettings: React.FC<GitLabSettingsProps> = ({ isOpen, onClose, onSucc
     setError('');
 
     try {
-      await authAPI.updatePreferences({
-        gitlabSettings: {
-          apiToken,
-          baseUrl,
-        },
+      await gitlabAPI.updateSettings({
+        apiToken,
+        baseUrl,
       });
 
       onSuccess();
@@ -51,23 +49,21 @@ const GitLabSettings: React.FC<GitLabSettingsProps> = ({ isOpen, onClose, onSucc
     setError('');
 
     try {
-      // Test the GitLab API connection
-      const response = await fetch(`${baseUrl}/api/v4/user`, {
-        headers: {
-          'Private-Token': apiToken,
-        },
+      const response = await gitlabAPI.testConnection({
+        apiToken,
+        baseUrl,
       });
 
-      if (response.ok) {
+      if (response.success) {
         setTestStatus('success');
         setTimeout(() => setTestStatus('idle'), 3000);
       } else {
         setTestStatus('failed');
-        setError('Failed to connect to GitLab. Please check your token and URL.');
+        setError(response.error || 'Failed to connect to GitLab');
       }
-    } catch (error) {
+    } catch (error: any) {
       setTestStatus('failed');
-      setError('Failed to connect to GitLab. Please check your token and URL.');
+      setError(error.response?.data?.error || 'Failed to connect to GitLab. Please check your token and URL.');
     }
   };
 

@@ -11,6 +11,7 @@ import authRoutes from './routes/auth';
 import analysisRoutes from './routes/analysis';
 import projectRoutes from './routes/projects';
 import webhookRoutes from './routes/webhooks';
+import systemRoutes from './routes/system';
 import logger from './utils/logger';
 
 dotenv.config();
@@ -52,6 +53,7 @@ app.get('/health', (req, res) => {
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/webhooks', webhookRoutes); // No auth required for webhooks
+app.use('/api/system', systemRoutes); // No auth required for system health checks
 app.use('/api/analysis', authMiddleware, analysisRoutes);
 app.use('/api/projects', authMiddleware, projectRoutes);
 

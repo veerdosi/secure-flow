@@ -95,7 +95,7 @@ router.post('/',
       let webhookId;
       try {
         const webhookUrl = `${process.env.API_BASE_URL || 'http://localhost:3001'}/api/webhooks/gitlab`;
-        const webhook = await gitlabService.createWebhook(gitlabProjectId, webhookUrl);
+        const webhook = await gitlabService.createWebhook(gitlabProjectId, decoded.userId, webhookUrl, webhookSecret);
         webhookId = webhook.id;
       } catch (webhookError) {
         logger.warn('Failed to create GitLab webhook:', webhookError);
@@ -204,7 +204,7 @@ router.delete('/:projectId',
       // Delete GitLab webhook if exists
       if (project.webhookId) {
         try {
-          await gitlabService.deleteWebhook(projectId, project.webhookId);
+          await gitlabService.deleteWebhook(projectId, decoded.userId, project.webhookId);
         } catch (webhookError) {
           logger.warn('Failed to delete GitLab webhook:', webhookError);
         }

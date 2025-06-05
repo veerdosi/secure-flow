@@ -1,9 +1,10 @@
 import { Router, Request, Response } from 'express';
 import { body, param, validationResult } from 'express-validator';
-import { getDb } from '../services/firebase';
+import { Analysis } from '../models';
 import gitlabService from '../services/gitlab';
 import aiAnalysisService from '../services/aiAnalysis';
 import logger from '../utils/logger';
+import jwt from 'jsonwebtoken';
 
 const router = Router();
 
@@ -30,34 +31,43 @@ router.post('/start',
       }
 
       const { projectId, commitHash, scanTypes = ['STATIC_ANALYSIS'] } = req.body;
-      const db = getDb();
+      
+      // Get user ID from JWT token
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ error: 'No token provided' });
+      }
+      const token = authHeader.substring(7);
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'dev-secret') as any;
 
       // Create analysis record
-      const analysisId = `analysis_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      const analysis = {
-        id: analysisId,
+      const analysis = new Analysis({
         projectId,
         commitHash: commitHash || 'latest',
-        timestamp: new Date().toISOString(),
-        status: 'PENDING',
         securityScore: 0,
-        threatLevel: 'UNKNOWN',
+        threatLevel: 'LOW',
         vulnerabilities: [],
-        scanTypes,
-        userId: req.user?.uid,
-        createdAt: new Date().toISOString(),
-      };
+        threatModel: {},
+        aiAnalysis: '',
+        remediationSteps: [],
+        complianceScore: {},
+        status: 'PENDING',
+        stage: 'INITIALIZING',
+        progress: 0,
+        triggeredBy: 'manual',
+        userId: decoded.userId,
+      });
 
-      await db.collection('analyses').doc(analysisId).set(analysis);
+      await analysis.save();
 
       // Start background analysis
-      processAnalysis(analysisId, projectId, commitHash).catch(error => {
+      processAnalysis(analysis._id.toString(), projectId, commitHash).catch(error => {
         logger.error('Background analysis failed:', error);
       });
 
       res.status(202).json({
         message: 'Analysis started',
-        analysisId,
+        analysisId: analysis._id,
         status: 'PENDING',
       });
     } catch (error) {
@@ -78,15 +88,13 @@ router.get('/:analysisId',
       }
 
       const { analysisId } = req.params;
-      const db = getDb();
 
-      const doc = await db.collection('analyses').doc(analysisId).get();
+      const analysis = await Analysis.findById(analysisId);
 
-      if (!doc.exists) {
+      if (!analysis) {
         return res.status(404).json({ error: 'Analysis not found' });
       }
 
-      const analysis = doc.data();
       res.json(analysis);
     } catch (error) {
       logger.error('Failed to get analysis:', error);
@@ -107,16 +115,11 @@ router.get('/project/:projectId',
 
       const { projectId } = req.params;
       const limit = parseInt(req.query.limit as string) || 10;
-      const db = getDb();
 
-      const snapshot = await db
-        .collection('analyses')
-        .where('projectId', '==', projectId)
-        .orderBy('timestamp', 'desc')
-        .limit(limit)
-        .get();
+      const analyses = await Analysis.find({ projectId })
+        .sort({ createdAt: -1 })
+        .limit(limit);
 
-      const analyses = snapshot.docs.map(doc => doc.data());
       res.json(analyses);
     } catch (error) {
       logger.error('Failed to get project analyses:', error);
@@ -127,21 +130,31 @@ router.get('/project/:projectId',
 
 // Background analysis processing
 async function processAnalysis(analysisId: string, projectId: string, commitHash?: string) {
-  const db = getDb();
-
   try {
+    // Get analysis to get userId
+    const analysis = await Analysis.findById(analysisId);
+    if (!analysis) {
+      throw new Error('Analysis not found');
+    }
+
+    const userId = analysis.userId;
+    if (!userId) {
+      throw new Error('User ID not found in analysis data');
+    }
+
     // Update status to IN_PROGRESS
-    await db.collection('analyses').doc(analysisId).update({
+    await Analysis.findByIdAndUpdate(analysisId, {
       status: 'IN_PROGRESS',
       stage: 'FETCHING_CODE',
       progress: 10,
+      startedAt: new Date(),
     });
 
     // Get project files
-    const files = await gitlabService.getProjectFiles(projectId, commitHash);
+    const files = await gitlabService.getProjectFiles(projectId, userId, commitHash || 'main');
     logger.info(`Found ${files.length} code files for analysis`);
 
-    await db.collection('analyses').doc(analysisId).update({
+    await Analysis.findByIdAndUpdate(analysisId, {
       stage: 'STATIC_ANALYSIS',
       progress: 30,
     });
@@ -153,7 +166,7 @@ async function processAnalysis(analysisId: string, projectId: string, commitHash
 
     for (const file of files.slice(0, 10)) { // Limit for demo
       try {
-        const content = await gitlabService.getFileContent(projectId, file.path, commitHash);
+        const content = await gitlabService.getFileContent(projectId, userId, file.path, commitHash || 'main');
         const aiResult = await aiAnalysisService.analyzeCode(content, file.path);
 
         if (aiResult.vulnerabilities) {
@@ -171,7 +184,7 @@ async function processAnalysis(analysisId: string, projectId: string, commitHash
       }
     }
 
-    await db.collection('analyses').doc(analysisId).update({
+    await Analysis.findByIdAndUpdate(analysisId, {
       stage: 'AI_ANALYSIS',
       progress: 60,
     });
@@ -182,7 +195,7 @@ async function processAnalysis(analysisId: string, projectId: string, commitHash
       { projectId, fileCount: files.length }
     );
 
-    await db.collection('analyses').doc(analysisId).update({
+    await Analysis.findByIdAndUpdate(analysisId, {
       stage: 'THREAT_MODELING',
       progress: 80,
     });
@@ -197,7 +210,7 @@ async function processAnalysis(analysisId: string, projectId: string, commitHash
     const remediationSteps = await aiAnalysisService.generateRemediationSteps(allVulnerabilities);
 
     // Final update
-    await db.collection('analyses').doc(analysisId).update({
+    await Analysis.findByIdAndUpdate(analysisId, {
       status: 'COMPLETED',
       stage: 'COMPLETED',
       progress: 100,
@@ -214,17 +227,17 @@ async function processAnalysis(analysisId: string, projectId: string, commitHash
         gdpr: Math.max(0, (avgScore - 15) / 85),
         iso27001: Math.max(0, (avgScore - 20) / 80),
       },
-      completedAt: new Date().toISOString(),
+      completedAt: new Date(),
     });
 
     logger.info(`Analysis ${analysisId} completed successfully`);
   } catch (error) {
     logger.error(`Analysis ${analysisId} failed:`, error);
 
-    await db.collection('analyses').doc(analysisId).update({
+    await Analysis.findByIdAndUpdate(analysisId, {
       status: 'FAILED',
-      error: error.message,
-      failedAt: new Date().toISOString(),
+      error: error instanceof Error ? error.message : 'Unknown error occurred',
+      failedAt: new Date(),
     });
   }
 }

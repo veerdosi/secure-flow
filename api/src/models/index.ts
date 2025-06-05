@@ -148,7 +148,7 @@ const AnalysisSchema = new Schema<IAnalysis>({
   threatLevel: {
     type: String,
     enum: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'],
-    default: 'UNKNOWN'
+    default: 'LOW'
   },
   vulnerabilities: [{ type: Schema.Types.Mixed }],
   threatModel: { type: Schema.Types.Mixed },
