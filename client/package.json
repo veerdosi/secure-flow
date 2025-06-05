@@ -1,1 +1,42 @@
-{"name": "secure-flow-client", "version": "1.0.0", "private": true, "scripts": {"dev": "next dev -p 3000", "build": "next build", "start": "next start", "lint": "next lint", "type-check": "tsc --noEmit"}, "dependencies": {"next": "^14.0.4", "react": "^18.2.0", "react-dom": "^18.2.0", "@types/node": "^20.10.5", "@types/react": "^18.2.45", "@types/react-dom": "^18.2.18", "typescript": "^5.3.3", "tailwindcss": "^3.3.6", "autoprefixer": "^10.4.16", "postcss": "^8.4.32", "lucide-react": "^0.300.0", "framer-motion": "^10.16.16", "recharts": "^2.8.0", "three": "^0.159.0", "@types/three": "^0.159.0", "axios": "^1.6.2", "zustand": "^4.4.7", "react-query": "^3.39.3", "date-fns": "^2.30.0", "clsx": "^2.0.0", "tailwind-merge": "^2.2.0", "js-cookie": "^3.0.5", "@types/js-cookie": "^3.0.6", "@tailwindcss/typography": "^0.5.10"}, "devDependencies": {"eslint": "^8.56.0", "eslint-config-next": "14.0.4"}}
+{
+  "name": "secure-flow-client",
+  "version": "1.0.0", 
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3000",
+    "build": "next build", 
+    "start": "next start",
+    "lint": "next lint",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "next": "^14.2.29",
+    "react": "^18.3.1", 
+    "react-dom": "^18.3.1",
+    "@types/node": "^20.17.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "typescript": "^5.8.3",
+    "tailwindcss": "^3.4.17",
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.4",
+    "lucide-react": "^0.458.0",
+    "framer-motion": "^11.15.0",
+    "recharts": "^2.15.3",
+    "three": "^0.170.0",
+    "@types/three": "^0.170.0", 
+    "axios": "^1.9.0",
+    "zustand": "^5.0.2",
+    "@tanstack/react-query": "^4.36.1",
+    "date-fns": "^4.1.0",
+    "clsx": "^2.1.1",
+    "tailwind-merge": "^2.6.0",
+    "js-cookie": "^3.0.5",
+    "@types/js-cookie": "^3.0.6",
+    "@tailwindcss/typography": "^0.5.16"
+  },
+  "devDependencies": {
+    "eslint": "^8.57.1",
+    "eslint-config-next": "14.2.29"
+  }
+}
