@@ -90,7 +90,7 @@ const Dashboard: React.FC<DashboardProps> = ({ projectId }) => {
         // Set progress if analysis is still running
         if (latestAnalysis.status === 'IN_PROGRESS') {
           setProgress({
-            stage: latestAnalysis.stage || 'Processing...',
+            stage: (latestAnalysis.stage || 'INITIALIZING') as any,
             progress: latestAnalysis.progress || 0,
             message: `Analyzing ${latestAnalysis.commitHash?.substring(0, 8)}...`,
             startTime: latestAnalysis.startedAt || new Date().toISOString()
@@ -120,7 +120,7 @@ const Dashboard: React.FC<DashboardProps> = ({ projectId }) => {
       
       // Start polling for progress
       setProgress({
-        stage: 'Initializing scan...',
+        stage: 'INITIALIZING',
         progress: 0,
         message: 'Starting security analysis',
         startTime: new Date().toISOString()

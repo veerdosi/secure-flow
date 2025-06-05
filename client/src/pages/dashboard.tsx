@@ -252,7 +252,7 @@ export default function DashboardPage() {
                 <Shield className="w-8 h-8 text-cyber-blue" />
                 <h1 className="text-2xl font-bold">SecureFlow AI</h1>
               </div>
-              <UserProfile onGitLabConfigured={() => setShowProjectSetup(true)} />
+              <UserProfile onGitLabConfigured={() => setTriggerProjectSetup(true)} />
             </div>
           </div>
         </div>

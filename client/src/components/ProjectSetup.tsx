@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Settings, GitBranch, Clock, Globe, Key, AlertTriangle } from 'lucide-react';
-import { ProjectConfig } from '@/types';
+import { ProjectConfig, ScanType } from '@/types';
 import { useUser } from './UserProvider';
 import { projectAPI } from '@/utils/api';
 
@@ -32,7 +32,7 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ onProjectCreated, triggerOp
     scanFrequency: 'ON_PUSH' as const,
     webhookSecret: '',
     notificationEmail: user?.email || '',
-    scanTypes: ['STATIC_ANALYSIS', 'DEPENDENCY_SCAN'] as string[],
+    scanTypes: ['STATIC_ANALYSIS', 'DEPENDENCY_SCAN'] as ScanType[],
   });
 
   const generateWebhookSecret = () => {
@@ -67,7 +67,7 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ onProjectCreated, triggerOp
           minSeverity: 'MEDIUM',
         },
         excludePaths: ['node_modules/', 'dist/', 'build/', '.git/'],
-        scanTypes: formData.scanTypes as any[],
+        scanTypes: formData.scanTypes,
         complianceFrameworks: ['OWASP'],
         webhookSecret: formData.webhookSecret,
         createdBy: user?.id,
@@ -86,10 +86,10 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ onProjectCreated, triggerOp
         gitlabProjectId: '',
         repositoryUrl: '',
         branch: 'main',
-        scanFrequency: 'ON_PUSH',
+        scanFrequency: 'ON_PUSH' as const,
         webhookSecret: '',
         notificationEmail: user?.email || '',
-        scanTypes: ['STATIC_ANALYSIS', 'DEPENDENCY_SCAN'],
+        scanTypes: ['STATIC_ANALYSIS', 'DEPENDENCY_SCAN'] as ScanType[],
       });
 
     } catch (error: any) {
@@ -99,7 +99,7 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ onProjectCreated, triggerOp
     }
   };
 
-  const webhookUrl = `${window.location.origin}/api/webhooks/gitlab`;
+  const webhookUrl = typeof window !== 'undefined' ? `${window.location.origin}/api/webhooks/gitlab` : '/api/webhooks/gitlab';
 
   return (
     <>
@@ -281,12 +281,12 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ onProjectCreated, triggerOp
                       <label key={scanType.id} className="flex items-start space-x-3 cursor-pointer">
                         <input
                           type="checkbox"
-                          checked={formData.scanTypes.includes(scanType.id)}
+                          checked={formData.scanTypes.includes(scanType.id as ScanType)}
                           onChange={(e) => {
                             if (e.target.checked) {
                               setFormData(prev => ({
                                 ...prev,
-                                scanTypes: [...prev.scanTypes, scanType.id]
+                                scanTypes: [...prev.scanTypes, scanType.id as ScanType]
                               }));
                             } else {
                               setFormData(prev => ({

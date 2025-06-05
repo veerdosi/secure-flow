@@ -11,9 +11,20 @@ interface GoogleSignInButtonProps {
   theme?: 'outline' | 'filled_blue' | 'filled_black';
 }
 
+interface GoogleCredentialResponse {
+  credential: string;
+}
+
 declare global {
   interface Window {
-    google: any;
+    google: {
+      accounts: {
+        id: {
+          initialize: (config: any) => void;
+          renderButton: (element: HTMLElement, config: any) => void;
+        };
+      };
+    };
   }
 }
 
@@ -58,7 +69,7 @@ const GoogleSignInButton: React.FC<GoogleSignInButtonProps> = ({
     }
   };
 
-  const handleCredentialResponse = async (response: any) => {
+  const handleCredentialResponse = async (response: GoogleCredentialResponse) => {
     try {
       const result = await authAPI.googleSignIn(response.credential);
       
