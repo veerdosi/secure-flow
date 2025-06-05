@@ -1,14 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { analysisAPI, projectAPI } from '../services/api';
+import { analysisAPI, projectAPI } from '../utils/api';
 import { SecurityAnalysis, Project, Vulnerability } from '../types';
 import ThreatModelVisualization from './ThreatModelVisualization';
 import RealTimeAnalysisFeed from './RealTimeAnalysisFeed';
-import { Progress } from '../components/ui/progress';
-import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/card';
-import { Button } from '../components/ui/button';
-import { Badge } from '../components/ui/badge';
-import { Alert, AlertDescription } from '../components/ui/alert';
 import { Clock, AlertTriangle, Shield, Activity, FileText, RefreshCw, Play, Settings } from 'lucide-react';
 
 const Dashboard: React.FC = () => {
@@ -78,15 +73,6 @@ const Dashboard: React.FC = () => {
         };
 
         setAnalysis(formattedAnalysis);
-
-        // Store state for ThreatModelVisualization
-        const threatModelState = {
-          selectedNode: null,
-          selectedEdge: null,
-          cameraPosition: { x: 0, y: 0, z: 5 },
-          zoomLevel: 1
-        };
-        localStorage.setItem('threatModelState', JSON.stringify(threatModelState));
       }
     } catch (error: any) {
       console.error('Failed to fetch analysis:', error);
@@ -101,7 +87,7 @@ const Dashboard: React.FC = () => {
 
     try {
       setLoading(true);
-      await analysisAPI.startAnalysis(projectId as string);
+      await analysisAPI.start({ projectId: projectId as string });
 
       // Navigate to real-time analysis view
       router.push(`/analysis/${projectId}`);
@@ -156,19 +142,27 @@ const Dashboard: React.FC = () => {
 
   if (error) {
     return (
-      <Alert className="m-4">
-        <AlertTriangle className="h-4 w-4" />
-        <AlertDescription>{error}</AlertDescription>
-      </Alert>
+      <div className="m-4 bg-red-50 border border-red-200 rounded-md p-4">
+        <div className="flex">
+          <AlertTriangle className="h-4 w-4 text-red-400" />
+          <div className="ml-3">
+            <p className="text-sm text-red-800">{error}</p>
+          </div>
+        </div>
+      </div>
     );
   }
 
   if (!project) {
     return (
-      <Alert className="m-4">
-        <AlertTriangle className="h-4 w-4" />
-        <AlertDescription>Project not found</AlertDescription>
-      </Alert>
+      <div className="m-4 bg-red-50 border border-red-200 rounded-md p-4">
+        <div className="flex">
+          <AlertTriangle className="h-4 w-4 text-red-400" />
+          <div className="ml-3">
+            <p className="text-sm text-red-800">Project not found</p>
+          </div>
+        </div>
+      </div>
     );
   }
 
@@ -183,18 +177,27 @@ const Dashboard: React.FC = () => {
           <p className="text-gray-600 mt-1">{project.repositoryUrl}</p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={handleProjectSettings} variant="outline">
+          <button
+            onClick={handleProjectSettings}
+            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+          >
             <Settings className="h-4 w-4 mr-2" />
             Settings
-          </Button>
-          <Button onClick={handleViewHistory} variant="outline">
+          </button>
+          <button
+            onClick={handleViewHistory}
+            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+          >
             <FileText className="h-4 w-4 mr-2" />
             History
-          </Button>
-          <Button onClick={handleRunAnalysis} className="bg-blue-600 hover:bg-blue-700">
+          </button>
+          <button
+            onClick={handleRunAnalysis}
+            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+          >
             <Play className="h-4 w-4 mr-2" />
             Run Analysis
-          </Button>
+          </button>
         </div>
       </div>
 
@@ -203,144 +206,171 @@ const Dashboard: React.FC = () => {
         <>
           {/* Summary Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Security Score</CardTitle>
-                <Shield className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{analysis.securityScore}/100</div>
-                <Progress value={analysis.securityScore} className="mt-2" />
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Threat Level</CardTitle>
-                <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <Badge className={getThreatLevelColor(analysis.threatLevel)}>
-                  {analysis.threatLevel}
-                </Badge>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Vulnerabilities</CardTitle>
-                <Activity className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{analysis.vulnerabilities.length}</div>
-                <div className="flex gap-2 mt-2">
-                  {vulnStats.critical > 0 && <Badge className="bg-red-100 text-red-800">{vulnStats.critical} Critical</Badge>}
-                  {vulnStats.high > 0 && <Badge className="bg-orange-100 text-orange-800">{vulnStats.high} High</Badge>}
-                  {vulnStats.medium > 0 && <Badge className="bg-yellow-100 text-yellow-800">{vulnStats.medium} Medium</Badge>}
-                  {vulnStats.low > 0 && <Badge className="bg-green-100 text-green-800">{vulnStats.low} Low</Badge>}
+            <div className="bg-white overflow-hidden shadow rounded-lg">
+              <div className="p-5">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <Shield className="h-6 w-6 text-gray-400" />
+                  </div>
+                  <div className="ml-5 w-0 flex-1">
+                    <dl>
+                      <dt className="text-sm font-medium text-gray-500 truncate">Security Score</dt>
+                      <dd className="text-lg font-medium text-gray-900">{analysis.securityScore}/100</dd>
+                    </dl>
+                    <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className="bg-blue-600 h-2 rounded-full"
+                        style={{ width: `${analysis.securityScore}%` }}
+                      />
+                    </div>
+                  </div>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Last Scan</CardTitle>
-                <Clock className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-sm">{formatTimestamp(analysis.timestamp)}</div>
-                <div className="text-xs text-gray-500 mt-1">
-                  Commit: {analysis.commitHash.substring(0, 8)}
+            <div className="bg-white overflow-hidden shadow rounded-lg">
+              <div className="p-5">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <AlertTriangle className="h-6 w-6 text-gray-400" />
+                  </div>
+                  <div className="ml-5 w-0 flex-1">
+                    <dl>
+                      <dt className="text-sm font-medium text-gray-500 truncate">Threat Level</dt>
+                      <dd>
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getThreatLevelColor(analysis.threatLevel)}`}>
+                          {analysis.threatLevel}
+                        </span>
+                      </dd>
+                    </dl>
+                  </div>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
+
+            <div className="bg-white overflow-hidden shadow rounded-lg">
+              <div className="p-5">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <Activity className="h-6 w-6 text-gray-400" />
+                  </div>
+                  <div className="ml-5 w-0 flex-1">
+                    <dl>
+                      <dt className="text-sm font-medium text-gray-500 truncate">Vulnerabilities</dt>
+                      <dd className="text-lg font-medium text-gray-900">{analysis.vulnerabilities.length}</dd>
+                    </dl>
+                    <div className="flex gap-1 mt-2">
+                      {vulnStats.critical > 0 && <span className="px-2 py-1 text-xs bg-red-100 text-red-800 rounded">{vulnStats.critical} Critical</span>}
+                      {vulnStats.high > 0 && <span className="px-2 py-1 text-xs bg-orange-100 text-orange-800 rounded">{vulnStats.high} High</span>}
+                      {vulnStats.medium > 0 && <span className="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded">{vulnStats.medium} Medium</span>}
+                      {vulnStats.low > 0 && <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded">{vulnStats.low} Low</span>}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white overflow-hidden shadow rounded-lg">
+              <div className="p-5">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <Clock className="h-6 w-6 text-gray-400" />
+                  </div>
+                  <div className="ml-5 w-0 flex-1">
+                    <dl>
+                      <dt className="text-sm font-medium text-gray-500 truncate">Last Scan</dt>
+                      <dd className="text-sm text-gray-900">{formatTimestamp(analysis.timestamp)}</dd>
+                    </dl>
+                    <div className="text-xs text-gray-500 mt-1">
+                      Commit: {analysis.commitHash.substring(0, 8)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Analysis Details */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Threat Model Visualization */}
-            <Card className="col-span-1 lg:col-span-2">
-              <CardHeader>
-                <CardTitle>Threat Model</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="h-96">
+            <div className="bg-white shadow rounded-lg col-span-1 lg:col-span-2">
+              <div className="px-4 py-5 sm:p-6">
+                <h3 className="text-lg leading-6 font-medium text-gray-900">Threat Model</h3>
+                <div className="mt-4 h-96">
                   <ThreatModelVisualization analysis={analysis} />
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
 
             {/* Vulnerabilities List */}
             {analysis.vulnerabilities.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Top Vulnerabilities</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
+              <div className="bg-white shadow rounded-lg">
+                <div className="px-4 py-5 sm:p-6">
+                  <h3 className="text-lg leading-6 font-medium text-gray-900">Top Vulnerabilities</h3>
+                  <div className="mt-4 space-y-3">
                     {analysis.vulnerabilities.slice(0, 5).map((vuln: Vulnerability) => (
                       <div key={vuln.id} className="border-l-4 border-l-red-500 pl-4">
                         <div className="flex items-center justify-between">
                           <h4 className="font-medium">{vuln.type}</h4>
-                          <Badge className={getThreatLevelColor(vuln.severity)}>
+                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getThreatLevelColor(vuln.severity)}`}>
                             {vuln.severity}
-                          </Badge>
+                          </span>
                         </div>
                         <p className="text-sm text-gray-600 mt-1">{vuln.description}</p>
                         <p className="text-xs text-gray-500">{vuln.file}:{vuln.line}</p>
                       </div>
                     ))}
                     {analysis.vulnerabilities.length > 5 && (
-                      <Button
-                        variant="outline"
+                      <button
                         onClick={() => router.push(`/projects/${projectId}/vulnerabilities`)}
-                        className="w-full"
+                        className="w-full inline-flex justify-center items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
                       >
                         View All {analysis.vulnerabilities.length} Vulnerabilities
-                      </Button>
+                      </button>
                     )}
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             )}
 
             {/* AI Analysis */}
             {analysis.aiAnalysis && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>AI Security Analysis</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm leading-relaxed">{analysis.aiAnalysis}</p>
-                </CardContent>
-              </Card>
+              <div className="bg-white shadow rounded-lg">
+                <div className="px-4 py-5 sm:p-6">
+                  <h3 className="text-lg leading-6 font-medium text-gray-900">AI Security Analysis</h3>
+                  <p className="mt-4 text-sm leading-relaxed text-gray-600">{analysis.aiAnalysis}</p>
+                </div>
+              </div>
             )}
           </div>
 
           {/* Real-time Analysis Feed */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Analysis Activity</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <RealTimeAnalysisFeed projectId={projectId as string} analysisId={analysis.id} />
-            </CardContent>
-          </Card>
+          <div className="bg-white shadow rounded-lg">
+            <div className="px-4 py-5 sm:p-6">
+              <h3 className="text-lg leading-6 font-medium text-gray-900">Analysis Activity</h3>
+              <div className="mt-4">
+                <RealTimeAnalysisFeed projectId={projectId as string} analysisId={analysis.id} />
+              </div>
+            </div>
+          </div>
         </>
       ) : (
-        <Card>
-          <CardContent className="text-center py-12">
+        <div className="bg-white shadow rounded-lg">
+          <div className="text-center py-12">
             <Shield className="h-12 w-12 mx-auto text-gray-400 mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">No Security Analysis Yet</h3>
             <p className="text-gray-600 mb-6">
               Run your first security analysis to get insights about your project's security posture.
             </p>
-            <Button onClick={handleRunAnalysis} className="bg-blue-600 hover:bg-blue-700">
+            <button
+              onClick={handleRunAnalysis}
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+            >
               <Play className="h-4 w-4 mr-2" />
               Run First Analysis
-            </Button>
-          </CardContent>
-        </Card>
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );
