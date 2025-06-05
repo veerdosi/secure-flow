@@ -192,10 +192,13 @@ export const Analysis = model<IAnalysis>('Analysis', AnalysisSchema);
 export const connectDB = async (): Promise<void> => {
   try {
     const conn = await mongoose.connect(process.env.MONGODB_URI as string);
+    if (!process.env.MONGODB_URI) {
+      throw new Error('MONGODB_URI environment variable is not set');
+    }
     console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
   } catch (error) {
     console.error('❌ MongoDB connection error:', error);
-    process.exit(1);
+    throw error; // Don't exit process in serverless environment
   }
 };
 
