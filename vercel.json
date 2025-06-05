@@ -20,11 +20,6 @@
       "dest": "client/$1"
     }
   ],
-  "functions": {
-    "api/src/index.ts": {
-      "maxDuration": 30
-    }
-  },
   "env": {
     "NODE_ENV": "production"
   }
