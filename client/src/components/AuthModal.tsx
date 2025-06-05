@@ -5,15 +5,17 @@ import { motion } from 'framer-motion';
 import { User, Eye, EyeOff, Mail, Lock } from 'lucide-react';
 import { authAPI, LoginData, RegisterData } from '@/utils/api';
 import Cookies from 'js-cookie';
+import GoogleSignInButton from './GoogleSignInButton';
 
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  defaultMode?: 'login' | 'register';
 }
 
-const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess }) => {
-  const [isLogin, setIsLogin] = useState(true);
+const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess, defaultMode = 'login' }) => {
+  const [isLogin, setIsLogin] = useState(defaultMode === 'login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -32,8 +34,9 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess }) => 
   useEffect(() => {
     if (isOpen) {
       resetForm();
+      setIsLogin(defaultMode === 'login');
     }
-  }, [isOpen, isLogin]);
+  }, [isOpen, defaultMode]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -191,6 +194,30 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess }) => 
             )}
           </motion.button>
         </form>
+
+        {/* Divider */}
+        <div className="mt-6 mb-6">
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-600" />
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-dark-card text-gray-400">or</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Google Sign In */}
+        <div className="mb-6">
+          <GoogleSignInButton
+            onSuccess={() => {
+              onSuccess();
+              onClose();
+            }}
+            onError={setError}
+            text={isLogin ? 'signin_with' : 'signup_with'}
+          />
+        </div>
 
         {/* Toggle */}
         <div className="mt-6 text-center">

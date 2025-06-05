@@ -9,6 +9,8 @@ export interface IUser extends Document {
   name: string;
   role: 'ADMIN' | 'DEVELOPER' | 'SECURITY_ANALYST' | 'VIEWER';
   projects: string[];
+  googleId?: string;
+  avatar?: string;
   gitlabSettings?: {
     apiToken: string;
     baseUrl: string; // e.g., 'https://gitlab.com' or self-hosted
@@ -35,6 +37,8 @@ const UserSchema = new Schema<IUser>({
     default: 'DEVELOPER'
   },
   projects: [{ type: String }],
+  googleId: { type: String, sparse: true },
+  avatar: { type: String },
   gitlabSettings: {
     apiToken: { type: String },
     baseUrl: { type: String, default: 'https://gitlab.com' }

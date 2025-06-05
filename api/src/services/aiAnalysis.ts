@@ -1,5 +1,10 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import dotenv from 'dotenv';
+import path from 'path';
 import logger from '../utils/logger';
+
+// Load environment variables
+dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 
 class AIAnalysisService {
   private genAI: GoogleGenerativeAI | null = null;
@@ -17,8 +22,8 @@ class AIAnalysisService {
 
     try {
       this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-      this.model = this.genAI.getGenerativeModel({ 
-        model: process.env.GEMINI_MODEL || 'gemini-pro' 
+      this.model = this.genAI.getGenerativeModel({
+        model: process.env.GEMINI_MODEL || 'gemini-pro'
       });
 
       logger.info('✅ Gemini AI initialized successfully');

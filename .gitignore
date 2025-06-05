@@ -122,4 +122,3 @@ temp/
 *.sln
 *.sw?
 codemcp.toml
-cloud-credentials.json

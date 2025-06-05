@@ -66,6 +66,11 @@ export interface User {
   role: string;
   projects: string[];
   preferences: any;
+  avatar?: string;
+  gitlabSettings?: {
+    apiToken: string;
+    baseUrl: string;
+  };
   lastLogin: string;
   createdAt: string;
 }
@@ -95,6 +100,11 @@ export const authAPI = {
 
   updatePreferences: async (preferences: any): Promise<any> => {
     const response = await api.patch('/api/auth/preferences', preferences);
+    return response.data;
+  },
+
+  googleSignIn: async (credential: string): Promise<AuthResponse> => {
+    const response = await api.post('/api/auth/google', { credential });
     return response.data;
   },
 };

@@ -90,7 +90,11 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
 };
 
 // User profile dropdown component
-export const UserProfile: React.FC = () => {
+interface UserProfileProps {
+  onGitLabConfigured?: () => void;
+}
+
+export const UserProfile: React.FC<UserProfileProps> = ({ onGitLabConfigured }) => {
   const { user, logout, refreshUser } = useUser();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [gitlabSettingsOpen, setGitlabSettingsOpen] = useState(false);
@@ -105,9 +109,17 @@ export const UserProfile: React.FC = () => {
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
       >
-        <div className="w-8 h-8 bg-cyber-blue rounded-full flex items-center justify-center">
-          <UserIcon className="w-4 h-4 text-white" />
-        </div>
+        {user.avatar ? (
+          <img 
+            src={user.avatar} 
+            alt={user.name}
+            className="w-8 h-8 rounded-full object-cover"
+          />
+        ) : (
+          <div className="w-8 h-8 bg-cyber-blue rounded-full flex items-center justify-center">
+            <UserIcon className="w-4 h-4 text-white" />
+          </div>
+        )}
         <span className="text-sm font-medium hidden md:block">{user.name}</span>
       </motion.button>
 
@@ -130,6 +142,7 @@ export const UserProfile: React.FC = () => {
                 setGitlabSettingsOpen(true);
                 setDropdownOpen(false);
               }}
+              data-gitlab-settings
               className="flex items-center w-full px-3 py-2 text-sm text-gray-300 hover:bg-gray-800"
             >
               <Settings className="w-4 h-4 mr-2" />
@@ -155,7 +168,11 @@ export const UserProfile: React.FC = () => {
         onClose={() => setGitlabSettingsOpen(false)}
         onSuccess={() => {
           refreshUser(); // Refresh user data to get updated GitLab settings
+          if (onGitLabConfigured) {
+            onGitLabConfigured();
+          }
         }}
+        existingSettings={user?.gitlabSettings}
       />
     </div>
   );

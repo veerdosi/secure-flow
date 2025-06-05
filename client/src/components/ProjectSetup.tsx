@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Settings, GitBranch, Clock, Globe, Key, AlertTriangle } from 'lucide-react';
 import { ProjectConfig } from '@/types';
@@ -9,13 +9,20 @@ import { projectAPI } from '@/utils/api';
 
 interface ProjectSetupProps {
   onProjectCreated: (project: ProjectConfig) => void;
+  triggerOpen?: boolean;
 }
 
-const ProjectSetup: React.FC<ProjectSetupProps> = ({ onProjectCreated }) => {
+const ProjectSetup: React.FC<ProjectSetupProps> = ({ onProjectCreated, triggerOpen = false }) => {
   const { user } = useUser();
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (triggerOpen) {
+      setIsOpen(true);
+    }
+  }, [triggerOpen]);
 
   const [formData, setFormData] = useState({
     name: '',

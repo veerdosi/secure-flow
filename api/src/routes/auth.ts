@@ -2,10 +2,18 @@ import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { body, validationResult } from 'express-validator';
+import { OAuth2Client } from 'google-auth-library';
 import { User } from '../models';
 import logger from '../utils/logger';
 
 const router = Router();
+
+// Initialize Google OAuth client
+const googleClient = new OAuth2Client(
+  process.env.GOOGLE_CLIENT_ID,
+  process.env.GOOGLE_CLIENT_SECRET,
+  process.env.GOOGLE_REDIRECT_URI
+);
 
 // Register
 router.post('/register',
@@ -126,6 +134,7 @@ router.post('/login',
           email: user.email,
           name: user.name,
           role: user.role,
+          avatar: user.avatar,
           projects: user.projects,
           preferences: user.preferences,
           lastLogin: user.lastLogin,
@@ -160,8 +169,10 @@ router.get('/me', async (req: Request, res: Response) => {
       email: user.email,
       name: user.name,
       role: user.role,
+      avatar: user.avatar,
       projects: user.projects,
       preferences: user.preferences,
+      gitlabSettings: user.gitlabSettings,
       lastLogin: user.lastLogin,
       createdAt: user.createdAt,
     });
@@ -309,6 +320,110 @@ router.post('/gitlab-test',
         success: false, 
         error: 'Failed to connect to GitLab. Please check your settings and try again.' 
       });
+    }
+  }
+);
+
+// Google OAuth Sign-In
+router.post('/google',
+  [
+    body('credential').notEmpty().withMessage('Google credential is required'),
+  ],
+  async (req: Request, res: Response) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      const { credential } = req.body;
+
+      // Verify Google token
+      const ticket = await googleClient.verifyIdToken({
+        idToken: credential,
+        audience: process.env.GOOGLE_CLIENT_ID,
+      });
+
+      const payload = ticket.getPayload();
+      
+      if (!payload) {
+        return res.status(401).json({ error: 'Invalid Google token' });
+      }
+
+      const { email, name, picture, sub: googleId } = payload;
+
+      if (!email) {
+        return res.status(400).json({ error: 'Email not provided by Google' });
+      }
+
+      // Check if user already exists
+      let user = await User.findOne({ 
+        $or: [
+          { email },
+          { googleId }
+        ]
+      });
+
+      if (user) {
+        // Update user's Google ID if not set
+        if (!user.googleId) {
+          user.googleId = googleId;
+          await user.save();
+        }
+        
+        // Update last login
+        user.lastLogin = new Date();
+        await user.save();
+      } else {
+        // Create new user
+        user = new User({
+          email,
+          name: name || email.split('@')[0],
+          googleId,
+          avatar: picture,
+          password: 'google-oauth', // Placeholder - won't be used
+          role: 'DEVELOPER',
+          projects: [],
+          preferences: {
+            theme: 'dark',
+            notifications: true,
+            autoRefresh: true,
+            dashboardLayout: 'detailed',
+            defaultTimeRange: '24h'
+          },
+          lastLogin: new Date(),
+        });
+
+        await user.save();
+      }
+
+      // Generate JWT
+      const token = jwt.sign(
+        { userId: user._id, email: user.email },
+        process.env.JWT_SECRET || 'dev-secret',
+        { expiresIn: '7d' }
+      );
+
+      logger.info(`Google OAuth sign-in: ${email}`);
+
+      res.json({
+        message: 'Google sign-in successful',
+        token,
+        user: {
+          id: user._id,
+          email: user.email,
+          name: user.name,
+          role: user.role,
+          avatar: user.avatar,
+          projects: user.projects,
+          preferences: user.preferences,
+          gitlabSettings: user.gitlabSettings,
+          lastLogin: user.lastLogin,
+        },
+      });
+    } catch (error) {
+      logger.error('Google OAuth error:', error);
+      res.status(500).json({ error: 'Google sign-in failed' });
     }
   }
 );

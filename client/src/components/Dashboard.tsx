@@ -92,7 +92,8 @@ const Dashboard: React.FC<DashboardProps> = ({ projectId }) => {
           setProgress({
             stage: latestAnalysis.stage || 'Processing...',
             progress: latestAnalysis.progress || 0,
-            message: `Analyzing ${latestAnalysis.commitHash?.substring(0, 8)}...`
+            message: `Analyzing ${latestAnalysis.commitHash?.substring(0, 8)}...`,
+            startTime: latestAnalysis.startedAt || new Date().toISOString()
           });
         } else {
           setProgress(null);
@@ -121,7 +122,8 @@ const Dashboard: React.FC<DashboardProps> = ({ projectId }) => {
       setProgress({
         stage: 'Initializing scan...',
         progress: 0,
-        message: 'Starting security analysis'
+        message: 'Starting security analysis',
+        startTime: new Date().toISOString()
       });
       
       // Refresh data immediately

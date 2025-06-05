@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Settings, Eye, EyeOff, ExternalLink, CheckCircle } from 'lucide-react';
 import { gitlabAPI } from '@/utils/api';
@@ -9,15 +9,33 @@ interface GitLabSettingsProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  existingSettings?: {
+    apiToken?: string;
+    baseUrl?: string;
+  };
 }
 
-const GitLabSettings: React.FC<GitLabSettingsProps> = ({ isOpen, onClose, onSuccess }) => {
+const GitLabSettings: React.FC<GitLabSettingsProps> = ({ isOpen, onClose, onSuccess, existingSettings }) => {
   const [apiToken, setApiToken] = useState('');
   const [baseUrl, setBaseUrl] = useState('https://gitlab.com');
+  const [isExistingConnection, setIsExistingConnection] = useState(false);
   const [showToken, setShowToken] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'success' | 'failed'>('idle');
+
+  useEffect(() => {
+    if (isOpen && existingSettings) {
+      if (existingSettings.apiToken) {
+        setApiToken(existingSettings.apiToken);
+        setIsExistingConnection(true);
+        setTestStatus('success');
+      }
+      if (existingSettings.baseUrl) {
+        setBaseUrl(existingSettings.baseUrl);
+      }
+    }
+  }, [isOpen, existingSettings]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -178,13 +196,15 @@ const GitLabSettings: React.FC<GitLabSettingsProps> = ({ isOpen, onClose, onSucc
             </motion.div>
           )}
 
-          {testStatus === 'success' && (
+          {(testStatus === 'success' || (isExistingConnection && testStatus !== 'failed')) && (
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               className="bg-green-500/10 border border-green-500/50 rounded-lg p-3"
             >
-              <p className="text-green-400 text-sm">✅ Successfully connected to GitLab!</p>
+              <p className="text-green-400 text-sm">
+                ✅ {testStatus === 'success' ? 'Successfully connected to GitLab!' : 'GitLab is connected and ready to use!'}
+              </p>
             </motion.div>
           )}
 

@@ -51,7 +51,7 @@ router.post('/gitlab', async (req: Request, res: Response) => {
 
     // Get changed files
     const latestCommit = commits[commits.length - 1];
-    const changedFiles = await gitlabService.getChangedFiles(project.id, latestCommit.id);
+    const changedFiles = await gitlabService.getChangedFiles(project.id.toString(), projectConfig.createdBy.toString(), latestCommit.id);
 
     // Only trigger analysis if code files were changed
     const hasCodeChanges = changedFiles.length > 0;
@@ -191,7 +191,7 @@ async function processWebhookAnalysis(
 
     await Analysis.findByIdAndUpdate(analysisId, {
       status: 'FAILED',
-      error: error.message,
+      error: error instanceof Error ? error.message : String(error),
       failedAt: new Date(),
     });
   }
