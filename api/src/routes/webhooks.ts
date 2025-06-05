@@ -2,7 +2,6 @@ import { Router, Request, Response } from 'express';
 import { Project, Analysis } from '../models';
 import gitlabService from '../services/gitlab';
 import logger from '../utils/logger';
-import crypto from 'crypto';
 
 const router = Router();
 
@@ -312,25 +311,35 @@ async function sendNotifications(projectId: string, analysis: any, securityScore
     const project = await Project.findById(projectId);
     if (!project?.notificationSettings) return;
 
-    const settings = project.notificationSettings;
-    const shouldNotify = vulnerabilityCount > 0 || securityScore < 70;
+    // Import notification service to avoid circular dependencies
+    const notificationService = (await import('../services/notification')).default;
 
-    if (!shouldNotify) return;
+    // Count vulnerabilities by severity
+    const vulnerabilities = analysis.vulnerabilities || [];
+    const criticalCount = vulnerabilities.filter((v: any) => v.severity === 'CRITICAL').length;
+    const highCount = vulnerabilities.filter((v: any) => v.severity === 'HIGH').length;
+    const mediumCount = vulnerabilities.filter((v: any) => v.severity === 'MEDIUM').length;
+    const lowCount = vulnerabilities.filter((v: any) => v.severity === 'LOW').length;
 
-    if (settings.email && settings.emailAddresses?.length > 0) {
-      // TODO: Implement email notifications
-      logger.info(`Email notification would be sent to: ${settings.emailAddresses.join(', ')}`);
-    }
+    const notificationData = {
+      projectId: project._id.toString(),
+      projectName: project.name,
+      analysisId: analysis._id.toString(),
+      commitHash: analysis.commitHash,
+      commitMessage: analysis.commitMessage,
+      author: analysis.author,
+      securityScore,
+      threatLevel: analysis.threatLevel,
+      vulnerabilityCount,
+      criticalCount,
+      highCount,
+      mediumCount,
+      lowCount,
+      repositoryUrl: project.repositoryUrl,
+      dashboardUrl: `${process.env.CLIENT_URL || 'http://localhost:3000'}/dashboard?project=${projectId}`,
+    };
 
-    if (settings.slack && settings.slackChannel) {
-      // TODO: Implement Slack notifications
-      logger.info(`Slack notification would be sent to: ${settings.slackChannel}`);
-    }
-
-    if (settings.webhook && settings.webhookUrl) {
-      // TODO: Implement custom webhook notifications
-      logger.info(`Webhook notification would be sent to: ${settings.webhookUrl}`);
-    }
+    await notificationService.sendAnalysisNotifications(notificationData);
 
   } catch (error) {
     logger.error('Failed to send notifications:', error);
