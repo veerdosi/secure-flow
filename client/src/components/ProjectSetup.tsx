@@ -2,13 +2,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Plus, 
-  GitBranch, 
-  Settings, 
-  Copy, 
-  ExternalLink, 
-  Check, 
+import {
+  Plus,
+  GitBranch,
+  Settings,
+  Copy,
+  ExternalLink,
+  Check,
   AlertCircle,
   Webhook,
   Shield,
@@ -28,9 +28,9 @@ interface ProjectSetupProps {
   buttonIcon?: React.ReactNode;
 }
 
-const ProjectSetup: React.FC<ProjectSetupProps> = ({ 
-  onProjectCreated, 
-  triggerOpen = false, 
+const ProjectSetup: React.FC<ProjectSetupProps> = ({
+  onProjectCreated,
+  triggerOpen = false,
   onClose,
   buttonText = "Add GitLab Project",
   buttonIcon = <Plus className="w-5 h-5 mr-2" />
@@ -145,13 +145,14 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({
     try {
       const projectData = {
         ...formData,
+        scanFrequency: formData.scanFrequency as 'ON_PUSH' | 'DAILY' | 'WEEKLY',
         webhookSecret,
         notificationSettings: {
           email: true,
           emailAddresses: [formData.notificationEmail],
           slack: false,
           webhook: false,
-          minSeverity: 'MEDIUM'
+          minSeverity: 'MEDIUM' as 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
         }
       };
 
@@ -467,7 +468,7 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({
                           Click "Add webhook"
                         </li>
                       </ol>
-                      
+
                       <motion.a
                         href={formData.repositoryUrl ? `${formData.repositoryUrl}/-/hooks` : '#'}
                         target="_blank"
@@ -517,8 +518,8 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({
                         >
                           <div className="flex items-center mb-2">
                             <div className={`mr-3 ${
-                              formData.scanTypes.includes(scanType.id) 
-                                ? 'text-cyber-blue' 
+                              formData.scanTypes.includes(scanType.id)
+                                ? 'text-cyber-blue'
                                 : 'text-gray-400'
                             }`}>
                               {scanType.icon}
@@ -594,7 +595,7 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({
                       <div className="col-span-2">
                         <span className="text-gray-400">Scan Types:</span>
                         <span className="ml-2 text-white">
-                          {formData.scanTypes.length > 0 
+                          {formData.scanTypes.length > 0
                             ? formData.scanTypes.join(', ').replace(/_/g, ' ')
                             : 'None selected'
                           }

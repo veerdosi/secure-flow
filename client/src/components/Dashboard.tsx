@@ -349,7 +349,7 @@ const Dashboard: React.FC = () => {
             <div className="px-4 py-5 sm:p-6">
               <h3 className="text-lg leading-6 font-medium text-gray-900">Analysis Activity</h3>
               <div className="mt-4">
-                <RealTimeAnalysisFeed projectId={projectId as string} analysisId={analysis.id} />
+                <RealTimeAnalysisFeed analysis={analysis} />
               </div>
             </div>
           </div>
