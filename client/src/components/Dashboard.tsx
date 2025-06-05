@@ -6,9 +6,14 @@ import ThreatModelVisualization from './ThreatModelVisualization';
 import RealTimeAnalysisFeed from './RealTimeAnalysisFeed';
 import { Clock, AlertTriangle, Shield, Activity, FileText, RefreshCw, Play, Settings } from 'lucide-react';
 
-const Dashboard: React.FC = () => {
+interface DashboardProps {
+  projectId?: string;
+}
+
+const Dashboard: React.FC<DashboardProps> = ({ projectId: propProjectId }) => {
   const router = useRouter();
-  const { projectId } = router.query;
+  const { projectId: routerProjectId } = router.query;
+  const projectId = propProjectId || routerProjectId;
   const [analysis, setAnalysis] = useState<SecurityAnalysis | null>(null);
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
