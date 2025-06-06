@@ -24,7 +24,7 @@ if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
     logger.add(new winston.transports.File({ filename: 'logs/error.log', level: 'error' }));
     logger.add(new winston.transports.File({ filename: 'logs/combined.log' }));
   } catch (error) {
-    console.warn('Could not create file transports:', error.message);
+    console.warn('Could not create file transports:', error instanceof Error ? error.message : String(error));
   }
 }
 
