@@ -1,17 +1,17 @@
 {
   "name": "secure-flow-client",
-  "version": "1.0.0", 
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev -p 3000",
-    "build": "next build", 
+    "build": "next build",
     "start": "next start",
     "lint": "next lint",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
     "next": "^14.2.29",
-    "react": "^18.3.1", 
+    "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "@types/node": "^20.17.0",
     "@types/react": "^18.3.12",
@@ -24,7 +24,7 @@
     "framer-motion": "^11.15.0",
     "recharts": "^2.15.3",
     "three": "^0.170.0",
-    "@types/three": "^0.170.0", 
+    "@types/three": "^0.170.0",
     "axios": "^1.9.0",
     "zustand": "^5.0.2",
     "@tanstack/react-query": "^4.36.1",
@@ -33,6 +33,7 @@
     "tailwind-merge": "^2.6.0",
     "js-cookie": "^3.0.5",
     "@types/js-cookie": "^3.0.6",
+    "@tailwindcss/forms": "^0.5.9",
     "@tailwindcss/typography": "^0.5.16"
   },
   "devDependencies": {
