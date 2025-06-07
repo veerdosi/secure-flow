@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import { motion } from 'framer-motion';
 import { analysisAPI, projectAPI } from '../utils/api';
 import { SecurityAnalysis, Project, Vulnerability } from '../types';
+import { useAnalysisData } from '../hooks/useAnalysisData';
+import { useWebhookHandler } from '../hooks/useWebhookHandler';
 import ThreatModelVisualization from './ThreatModelVisualization';
 import RealTimeAnalysisFeed from './RealTimeAnalysisFeed';
 import VulnerabilityHeatmap from './VulnerabilityHeatmap';
@@ -39,6 +41,10 @@ const Dashboard = ({ projectId: propProjectId, projectData }: DashboardProps) =>
   const router = useRouter();
   const { projectId: routerProjectId } = router.query;
   const projectId = propProjectId || routerProjectId;
+  
+  const { getAnalysisData, setAnalysisData, refreshAnalysis, isStale } = useAnalysisData();
+  useWebhookHandler(); // Enable real-time updates
+  
   const [analysis, setAnalysis] = useState<SecurityAnalysis | null>(null);
   const [project, setProject] = useState<Project | null>(projectData || null);
   const [loading, setLoading] = useState(!projectData);
@@ -58,9 +64,34 @@ const Dashboard = ({ projectId: propProjectId, projectData }: DashboardProps) =>
       if (!projectData) {
         fetchProjectData();
       }
-      fetchLatestAnalysis();
+      loadAnalysisData();
     }
   }, [projectId, projectData]);
+
+  const loadAnalysisData = useCallback(async () => {
+    if (!projectId) return;
+    
+    // Check cache first
+    const cachedAnalysis = getAnalysisData(projectId as string);
+    
+    if (cachedAnalysis && !isStale(projectId as string)) {
+      // Use cached data
+      setAnalysis(cachedAnalysis);
+      setLoading(false);
+      console.log('Using cached analysis data');
+      return;
+    }
+    
+    // Fetch fresh data if cache is stale or missing
+    setLoading(true);
+    try {
+      await fetchLatestAnalysis();
+    } catch (error) {
+      setError('Failed to load analysis data');
+    } finally {
+      setLoading(false);
+    }
+  }, [projectId, getAnalysisData, isStale]);
 
   const fetchProjectData = async () => {
     try {
@@ -72,7 +103,7 @@ const Dashboard = ({ projectId: propProjectId, projectData }: DashboardProps) =>
     }
   };
 
-  const fetchLatestAnalysis = async () => {
+  const fetchLatestAnalysis = useCallback(async () => {
     try {
       const analyses = await analysisAPI.getByProject(projectId as string, 1);
 
@@ -99,6 +130,19 @@ const Dashboard = ({ projectId: propProjectId, projectData }: DashboardProps) =>
 
         setAnalysis(formattedAnalysis);
         
+        // Cache the analysis data
+        setAnalysisData(projectId as string, {
+          vulnerabilities: formattedAnalysis.vulnerabilities,
+          summary: {
+            securityScore: formattedAnalysis.securityScore,
+            threatLevel: formattedAnalysis.threatLevel,
+            aiAnalysis: formattedAnalysis.aiAnalysis,
+            complianceScore: formattedAnalysis.complianceScore
+          },
+          scanId: formattedAnalysis.id,
+          lastScan: Date.now()
+        });
+        
         // Check if this analysis needs human approval
         if (latestAnalysis.status === 'AWAITING_APPROVAL' && latestAnalysis.proposedRemediations?.length > 0) {
           setPendingApproval(latestAnalysis);
@@ -108,7 +152,7 @@ const Dashboard = ({ projectId: propProjectId, projectData }: DashboardProps) =>
     } catch (error: any) {
       console.error('Failed to fetch analysis:', error);
     }
-  };
+  }, [projectId, setAnalysisData]);
 
   const handleApprovalUpdate = () => {
     setShowApprovalModal(false);
