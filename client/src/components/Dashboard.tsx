@@ -8,23 +8,33 @@ import { Clock, AlertTriangle, Shield, Activity, FileText, RefreshCw, Play, Sett
 
 interface DashboardProps {
   projectId?: string;
+  projectData?: Project;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ projectId: propProjectId }) => {
+const Dashboard: React.FC<DashboardProps> = ({ projectId: propProjectId, projectData }) => {
   const router = useRouter();
   const { projectId: routerProjectId } = router.query;
   const projectId = propProjectId || routerProjectId;
   const [analysis, setAnalysis] = useState<SecurityAnalysis | null>(null);
-  const [project, setProject] = useState<Project | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [project, setProject] = useState<Project | null>(projectData || null);
+  const [loading, setLoading] = useState(!projectData);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (projectData) {
+      setProject(projectData);
+      setLoading(false);
+    }
+  }, [projectData]);
+
+  useEffect(() => {
     if (projectId) {
-      fetchProjectData();
+      if (!projectData) {
+        fetchProjectData();
+      }
       fetchLatestAnalysis();
     }
-  }, [projectId]);
+  }, [projectId, projectData]);
 
   const fetchProjectData = async () => {
     try {
