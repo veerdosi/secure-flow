@@ -354,7 +354,7 @@ const Dashboard = ({ projectId: propProjectId, projectData }: DashboardProps) =>
                 </h1>
                 <p className="text-gray-400 text-sm">
                   <span className="text-gray-500">Project: </span>
-                  {project.repositoryUrl.split('/').pop()}
+                  {project.repositoryUrl?.split('/').pop() || 'Unknown'}
                 </p>
               </div>
             </div>

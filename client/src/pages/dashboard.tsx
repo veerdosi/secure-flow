@@ -6,7 +6,7 @@ import { useUser, UserProfile } from '@/components/UserProvider'
 import Dashboard from '@/components/Dashboard'
 import ProjectSetup from '@/components/ProjectSetup'
 import GitLabSettings from '@/components/GitLabSettings'
-import { projectAPI, systemAPI } from '@/utils/api'
+import { projectAPI, systemAPI, isTokenValid } from '@/utils/api'
 import { useRouter } from 'next/router'
 import { Project } from '@/types'
 import { useAppState } from '@/hooks/useAppState'
@@ -30,10 +30,24 @@ export default function DashboardPage() {
   const [showGitLabSettings, setShowGitLabSettings] = useState(false)
   const [initialized, setInitialized] = useState(false)
 
+  // Early auth check to prevent API calls without token
+  useEffect(() => {
+    if (!loading && !isTokenValid()) {
+      router.replace('/')
+      return
+    }
+  }, [loading, router])
+
   const loadProjects = useCallback(async () => {
-    const projectData = await projectAPI.getAll()
-    setProjects(projectData)
-    return projectData
+    try {
+      const projectData = await projectAPI.getAll()
+      setProjects(projectData || [])
+      return projectData || []
+    } catch (error: any) {
+      console.error('Failed to load projects:', error)
+      setError('Failed to load projects')
+      return []
+    }
   }, [setProjects])
 
   const checkSystemHealth = useCallback(async () => {
@@ -67,11 +81,17 @@ export default function DashboardPage() {
         if (projects.length === 0) {
           const projectData = await loadProjects()
           
-          // Don't auto-select project, let user choose
-          if (projectData.length > 0 && router.query.project) {
-            const requestedProject = projectData.find((p: any) => p._id === router.query.project)
-            if (requestedProject) {
-              setSelectedProject(requestedProject)
+          // Auto-select first project if no specific project requested and projects exist
+          if (projectData.length > 0) {
+            if (router.query.project) {
+              const requestedProject = projectData.find((p: any) => p._id === router.query.project)
+              if (requestedProject) {
+                setSelectedProject(requestedProject)
+              }
+            } else {
+              // Auto-select first project if none specified
+              setSelectedProject(projectData[0])
+              router.replace(`/dashboard?project=${projectData[0]._id}`, undefined, { shallow: true })
             }
           }
         }
@@ -105,9 +125,52 @@ export default function DashboardPage() {
   // Redirect if not authenticated
   useEffect(() => {
     if (!loading && !user) {
-      router.push('/')
+      router.replace('/')
+      return
     }
   }, [user, loading, router])
+
+  // Initialize data once
+  useEffect(() => {
+    if (loading || !user || initialized) return
+
+    const init = async () => {
+      setLoadingData(true)
+      try {
+        // Load projects if empty
+        if (projects.length === 0) {
+          const projectData = await loadProjects()
+          
+          // Auto-select first project if no specific project requested and projects exist
+          if (projectData.length > 0) {
+            if (router.query.project) {
+              const requestedProject = projectData.find((p: any) => p._id === router.query.project)
+              if (requestedProject) {
+                setSelectedProject(requestedProject)
+              }
+            } else {
+              // Auto-select first project if none specified
+              setSelectedProject(projectData[0])
+              router.replace(`/dashboard?project=${projectData[0]._id}`, undefined, { shallow: true })
+            }
+          }
+        }
+        
+        // Check health if needed
+        if (!systemHealth || isHealthStale()) {
+          await checkSystemHealth()
+        }
+        
+        setInitialized(true)
+      } catch (err: any) {
+        setError('Failed to load data')
+      } finally {
+        setLoadingData(false)
+      }
+    }
+
+    init()
+  }, [user, loading, initialized])
 
   const handleProjectCreated = useCallback((newProject: any) => {
     setProjects([...projects, newProject])
