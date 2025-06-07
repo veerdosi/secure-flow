@@ -289,7 +289,7 @@ const Dashboard = ({ projectId: propProjectId, projectData }: DashboardProps) =>
     );
   };
 
-  if (loading || !project) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-dark-bg text-white flex items-center justify-center">
         <div className="text-center">
@@ -317,8 +317,7 @@ const Dashboard = ({ projectId: propProjectId, projectData }: DashboardProps) =>
     );
   }
 
-  if (!project && !loading) {
-    // Only show error after loading is complete and no project found
+  if (!project) {
     return (
       <div className="min-h-screen bg-dark-bg text-white p-6">
         <div className="max-w-md mx-auto mt-20 bg-red-500/10 border border-red-500/50 rounded-xl p-6">
