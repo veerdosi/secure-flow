@@ -9,9 +9,11 @@ import { errorHandler } from './middleware/errorHandler';
 import { authMiddleware } from './middleware/auth';
 import authRoutes from './routes/auth';
 import analysisRoutes from './routes/analysis';
+import approvalRoutes from './routes/approval';
 import projectRoutes from './routes/projects';
 import webhookRoutes from './routes/webhooks';
 import systemRoutes from './routes/system';
+import AnalysisScheduler from './services/analysisScheduler';
 import logger from './utils/logger';
 
 // Load environment variables - works both locally and in serverless
@@ -72,15 +74,24 @@ app.use(morgan('combined'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Database connection middleware for serverless
-app.use(async (req, res, next) => {
-  try {
-    await connectDB();
-    next();
-  } catch (error) {
-    logger.error('Database connection failed:', error);
-    res.status(500).json({ error: 'Database connection failed' });
+// Initialize database connection once for serverless functions
+let dbInitialized = false;
+const initializeDB = async () => {
+  if (!dbInitialized) {
+    try {
+      await connectDB();
+      dbInitialized = true;
+      logger.info('Database connection initialized');
+    } catch (error) {
+      logger.error('Database initialization failed:', error);
+      throw error;
+    }
   }
+};
+
+// Initialize database connection on startup
+initializeDB().catch(error => {
+  logger.error('Failed to initialize database on startup:', error);
 });
 
 // Health check
@@ -98,6 +109,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/webhooks', webhookRoutes); // No auth required for webhooks
 app.use('/api/system', systemRoutes); // No auth required for system health checks
 app.use('/api/analysis', authMiddleware, analysisRoutes);
+app.use('/api/approval', authMiddleware, approvalRoutes);
 app.use('/api/projects', authMiddleware, projectRoutes);
 
 // Error handling
@@ -112,6 +124,26 @@ app.listen(PORT, () => {
   logger.info(`🚀 SecureFlow API server running on port ${PORT}`);
   logger.info(`📊 Health check available at http://localhost:${PORT}/health`);
   logger.info(`🗄️  Using MongoDB database`);
+
+  // Start analysis scheduler
+  const scheduler = AnalysisScheduler.getInstance();
+  scheduler.start();
+  logger.info(`⏰ Analysis scheduler started`);
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  logger.info('SIGTERM received, shutting down gracefully');
+  const scheduler = AnalysisScheduler.getInstance();
+  scheduler.stop();
+  process.exit(0);
+});
+
+process.on('SIGINT', () => {
+  logger.info('SIGINT received, shutting down gracefully');
+  const scheduler = AnalysisScheduler.getInstance();
+  scheduler.stop();
+  process.exit(0);
 });
 
 export default app;

@@ -117,6 +117,46 @@ const ProjectSchema = new Schema<IProject>({
   timestamps: true,
 });
 
+// Analysis History Item for tracking changes
+export interface IAnalysisHistoryItem {
+  timestamp: Date;
+  securityScore: number;
+  threatLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  vulnerabilityCount: number;
+  newVulnerabilities: number;
+  resolvedVulnerabilities: number;
+  commitHash: string;
+  triggeredBy: 'manual' | 'webhook' | 'scheduled';
+}
+
+// Remediation Action Interface
+export interface IRemediationAction {
+  id: string;
+  type: 'CODE_FIX' | 'DEPENDENCY_UPDATE' | 'CONFIG_CHANGE' | 'SECURITY_PATCH';
+  title: string;
+  description: string;
+  file: string;
+  lineNumber?: number;
+  originalCode?: string;
+  proposedCode?: string;
+  severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  automated: boolean;
+  estimatedRisk: 'LOW' | 'MEDIUM' | 'HIGH';
+  confidence: number; // 0-100
+}
+
+// Human Approval Interface
+export interface IHumanApproval {
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  approvedBy?: string;
+  approvedAt?: Date;
+  rejectedBy?: string;
+  rejectedAt?: Date;
+  approvedActions: string[]; // array of remediation action IDs
+  rejectedActions: string[]; // array of remediation action IDs
+  comments?: string;
+}
+
 // Analysis Schema
 export interface IAnalysis extends Document {
   _id: string;
@@ -128,8 +168,12 @@ export interface IAnalysis extends Document {
   threatModel: any;
   aiAnalysis: string;
   remediationSteps: any[];
+  // Enhanced remediation with human approval
+  proposedRemediations: IRemediationAction[];
+  humanApproval: IHumanApproval;
+  autoRemediationEnabled: boolean;
   complianceScore: any;
-  status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED';
+  status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED' | 'AWAITING_APPROVAL';
   stage?: string;
   progress?: number;
   startedAt?: Date;
@@ -141,6 +185,10 @@ export interface IAnalysis extends Document {
   commitMessage?: string;
   author?: any;
   error?: string;
+  // Analysis History - stores trends over time
+  history: IAnalysisHistoryItem[];
+  // Previous analysis ID for comparison
+  previousAnalysisId?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -161,7 +209,7 @@ const AnalysisSchema = new Schema<IAnalysis>({
   complianceScore: { type: Schema.Types.Mixed },
   status: {
     type: String,
-    enum: ['PENDING', 'IN_PROGRESS', 'COMPLETED', 'FAILED'],
+    enum: ['PENDING', 'IN_PROGRESS', 'COMPLETED', 'FAILED', 'AWAITING_APPROVAL'],
     default: 'PENDING'
   },
   stage: { type: String },
@@ -179,6 +227,44 @@ const AnalysisSchema = new Schema<IAnalysis>({
   commitMessage: { type: String },
   author: { type: Schema.Types.Mixed },
   error: { type: String },
+  // Enhanced remediation system
+  proposedRemediations: [{
+    id: { type: String, required: true },
+    type: { type: String, enum: ['CODE_FIX', 'DEPENDENCY_UPDATE', 'CONFIG_CHANGE', 'SECURITY_PATCH'], required: true },
+    title: { type: String, required: true },
+    description: { type: String, required: true },
+    file: { type: String, required: true },
+    lineNumber: { type: Number },
+    originalCode: { type: String },
+    proposedCode: { type: String },
+    severity: { type: String, enum: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'], required: true },
+    automated: { type: Boolean, default: false },
+    estimatedRisk: { type: String, enum: ['LOW', 'MEDIUM', 'HIGH'], default: 'MEDIUM' },
+    confidence: { type: Number, min: 0, max: 100, default: 70 }
+  }],
+  humanApproval: {
+    status: { type: String, enum: ['PENDING', 'APPROVED', 'REJECTED'], default: 'PENDING' },
+    approvedBy: { type: String, ref: 'User' },
+    approvedAt: { type: Date },
+    rejectedBy: { type: String, ref: 'User' },
+    rejectedAt: { type: Date },
+    approvedActions: [{ type: String }],
+    rejectedActions: [{ type: String }],
+    comments: { type: String }
+  },
+  autoRemediationEnabled: { type: Boolean, default: false },
+  // Analysis history for trends
+  history: [{
+    timestamp: { type: Date, default: Date.now },
+    securityScore: { type: Number },
+    threatLevel: { type: String, enum: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] },
+    vulnerabilityCount: { type: Number },
+    newVulnerabilities: { type: Number, default: 0 },
+    resolvedVulnerabilities: { type: Number, default: 0 },
+    commitHash: { type: String },
+    triggeredBy: { type: String, enum: ['manual', 'webhook', 'scheduled'] }
+  }],
+  previousAnalysisId: { type: String, ref: 'Analysis' },
 }, {
   timestamps: true,
 });
