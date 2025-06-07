@@ -404,7 +404,7 @@ const Dashboard: React.FC<DashboardProps> = ({ projectId: propProjectId, project
                       <span className="text-gray-300 text-sm">Secure</span>
                     </div>
                     <span className="text-white font-semibold">
-                      {analysis.threatModel.nodes.filter(n => n.type === 'secure').length}
+                      {analysis.threatModel?.nodes?.filter(n => n.riskLevel === 'LOW').length || 0}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
@@ -413,7 +413,7 @@ const Dashboard: React.FC<DashboardProps> = ({ projectId: propProjectId, project
                       <span className="text-gray-300 text-sm">Medium Risk</span>
                     </div>
                     <span className="text-white font-semibold">
-                      {analysis.threatModel.nodes.filter(n => n.type === 'medium').length}
+                      {analysis.threatModel?.nodes?.filter(n => n.riskLevel === 'MEDIUM').length || 0}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
@@ -422,7 +422,7 @@ const Dashboard: React.FC<DashboardProps> = ({ projectId: propProjectId, project
                       <span className="text-gray-300 text-sm">Vulnerable</span>
                     </div>
                     <span className="text-white font-semibold">
-                      {analysis.threatModel.nodes.filter(n => n.type === 'vulnerable').length}
+                      {analysis.threatModel?.nodes?.filter(n => n.riskLevel === 'HIGH' || n.riskLevel === 'CRITICAL').length || 0}
                     </span>
                   </div>
                 </div>

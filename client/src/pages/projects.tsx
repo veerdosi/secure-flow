@@ -268,7 +268,7 @@ export default function ProjectsPage() {
                 <div>
                   <p className="text-gray-400 text-sm font-medium">Active Scans</p>
                   <p className="text-2xl font-bold text-cyber-blue">
-                    {projects.filter(p => p.latestAnalysis?.status === 'running').length}
+                    {projects.filter(p => p.latestAnalysis?.status === 'IN_PROGRESS' || p.latestAnalysis?.status === 'PENDING').length}
                   </p>
                 </div>
                 <Activity className="w-8 h-8 text-cyber-blue" />
