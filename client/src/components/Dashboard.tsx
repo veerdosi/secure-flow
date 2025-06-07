@@ -47,10 +47,13 @@ const Dashboard = ({ projectId: propProjectId, projectData }: DashboardProps) =>
   
   const [analysis, setAnalysis] = useState<SecurityAnalysis | null>(null);
   const [project, setProject] = useState<Project | null>(projectData || null);
-  const [loading, setLoading] = useState(!projectData);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showApprovalModal, setShowApprovalModal] = useState(false);
   const [pendingApproval, setPendingApproval] = useState<any>(null);
+
+  // Don't start loading data until router is ready and we have a projectId
+  const isReady = router.isReady && projectId;
 
   useEffect(() => {
     if (projectData) {
@@ -60,16 +63,16 @@ const Dashboard = ({ projectId: propProjectId, projectData }: DashboardProps) =>
   }, [projectData]);
 
   useEffect(() => {
-    if (projectId) {
+    if (isReady) {
       if (!projectData) {
         fetchProjectData();
       }
       loadAnalysisData();
     }
-  }, [projectId, projectData]);
+  }, [isReady, projectData]);
 
   const loadAnalysisData = useCallback(async () => {
-    if (!projectId) return;
+    if (!isReady) return;
     
     // Check cache first
     const cachedAnalysis = getAnalysisData(projectId as string);
@@ -91,12 +94,15 @@ const Dashboard = ({ projectId: propProjectId, projectData }: DashboardProps) =>
     } finally {
       setLoading(false);
     }
-  }, [projectId, getAnalysisData, isStale]);
+  }, [isReady, projectId, getAnalysisData, isStale]);
 
   const fetchProjectData = async () => {
+    if (!isReady) return;
+    
     try {
       const projectData = await projectAPI.getById(projectId as string);
       setProject(projectData);
+      setError(null);
     } catch (error: any) {
       console.error('Failed to fetch project:', error);
       setError('Failed to load project data');
@@ -116,7 +122,7 @@ const Dashboard = ({ projectId: propProjectId, projectData }: DashboardProps) =>
           commitHash: latestAnalysis.commitHash,
           timestamp: latestAnalysis.createdAt,
           securityScore: latestAnalysis.securityScore || 0,
-          threatLevel: latestAnalysis.threatLevel || 'LOW',
+          threatLevel: latestAnalysis.threatLevel,
           vulnerabilities: latestAnalysis.vulnerabilities || [],
           threatModel: latestAnalysis.threatModel || { nodes: [], edges: [] },
           aiAnalysis: latestAnalysis.aiAnalysis || '',

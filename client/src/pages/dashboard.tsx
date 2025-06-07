@@ -67,10 +67,12 @@ export default function DashboardPage() {
         if (projects.length === 0) {
           const projectData = await loadProjects()
           
-          // Auto-select first project
-          if (projectData.length > 0 && !selectedProject && !router.query.project) {
-            setSelectedProject(projectData[0])
-            router.push(`/dashboard?project=${projectData[0]._id}`, undefined, { shallow: true })
+          // Don't auto-select project, let user choose
+          if (projectData.length > 0 && router.query.project) {
+            const requestedProject = projectData.find((p: any) => p._id === router.query.project)
+            if (requestedProject) {
+              setSelectedProject(requestedProject)
+            }
           }
         }
         
@@ -306,6 +308,75 @@ export default function DashboardPage() {
             onSuccess={handleGitLabConfigured}
             currentSettings={user?.gitlabSettings}
           />
+        </div>
+      </>
+    )
+  }
+
+  // Projects exist but none selected - show project selection
+  if (projects.length > 0) {
+    return (
+      <>
+        <Head>
+          <title>Select Project - SecureFlow AI</title>
+        </Head>
+        <div className="min-h-screen bg-dark-bg text-white">
+          <div className="border-b border-dark-border bg-dark-card/50 backdrop-blur-sm">
+            <div className="max-w-7xl mx-auto px-6 py-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <Shield className="w-8 h-8 text-cyber-blue" />
+                  <h1 className="text-2xl font-bold">SecureFlow AI</h1>
+                </div>
+                <UserProfile
+                  onGitLabConfigured={handleGitLabConfigured}
+                  showGitLabSettings={showGitLabSettings}
+                  setShowGitLabSettings={setShowGitLabSettings}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="max-w-7xl mx-auto px-6 py-16">
+            <div className="text-center mb-12">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-8"
+              >
+                <Shield className="w-16 h-16 text-cyber-blue mx-auto mb-6" />
+                <h2 className="text-3xl font-bold mb-4">Select a Project</h2>
+                <p className="text-gray-400 text-lg">
+                  Choose a project to view its security analysis dashboard
+                </p>
+              </motion.div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+              {projects.map((project, index) => (
+                <motion.div
+                  key={project._id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  onClick={() => handleProjectChange(project)}
+                  className="bg-dark-card border border-dark-border rounded-xl p-6 hover:border-cyber-blue/50 transition-all cursor-pointer group"
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-xl font-semibold text-white group-hover:text-cyber-blue transition-colors">
+                      {project.name}
+                    </h3>
+                    <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-cyber-blue group-hover:translate-x-1 transition-all" />
+                  </div>
+                  <p className="text-gray-400 text-sm mb-4 truncate">{project.repositoryUrl}</p>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-500">Branch: {project.branch}</span>
+                    <span className="text-gray-500">Scan: {project.scanFrequency}</span>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
         </div>
       </>
     )
