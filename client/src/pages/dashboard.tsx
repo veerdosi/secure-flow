@@ -7,15 +7,7 @@ import Dashboard from '@/components/Dashboard'
 import ProjectSetup from '@/components/ProjectSetup'
 import { projectAPI, systemAPI } from '@/utils/api'
 import { useRouter } from 'next/router'
-
-interface Project {
-  _id: string
-  name: string
-  gitlabProjectId: string
-  repositoryUrl: string
-  branch: string
-  lastScanDate?: string
-}
+import { Project } from '@/types'
 
 export default function DashboardPage() {
   const { user, loading } = useUser()
@@ -86,8 +78,10 @@ export default function DashboardPage() {
 
   const handleProjectCreated = (newProject: any) => {
     setProjects(prev => [...prev, newProject])
-    setSelectedProject(newProject)
     setTriggerProjectSetup(false)
+    
+    // Immediately set the new project as selected and navigate
+    setSelectedProject(newProject)
     router.push(`/dashboard?project=${newProject._id}`, undefined, { shallow: true })
   }
 
@@ -243,7 +237,7 @@ if (selectedProject) {
           </div>
         </div>
 
-        <Dashboard projectId={selectedProject._id} />
+        <Dashboard projectId={selectedProject._id} projectData={selectedProject} />
         
         {/* Project Setup Modal */}
         {triggerProjectSetup && (
