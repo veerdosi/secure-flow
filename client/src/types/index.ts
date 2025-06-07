@@ -3,7 +3,6 @@ export interface User {
   id: string;
   email: string;
   name: string;
-  role: 'ADMIN' | 'DEVELOPER' | 'SECURITY_ANALYST' | 'VIEWER';
   avatar?: string;
   projects: string[];
   preferences: UserPreferences;

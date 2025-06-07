@@ -622,8 +622,6 @@ const Dashboard = ({ projectId: propProjectId, projectData }: DashboardProps) =>
                   <VulnerabilityHeatmap vulnerabilities={analysis.vulnerabilities} />
                 </div>
               </motion.div>
-
-              </motion.div>
             </div>
 
             {/* Bottom Section - Additional Details */}

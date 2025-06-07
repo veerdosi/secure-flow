@@ -48,31 +48,3 @@ export const authMiddleware = async (
     });
   }
 };
-
-export const requireRole = (requiredRole: string) => {
-  return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-    if (!req.user) {
-      return res.status(401).json({
-        error: 'Authentication required'
-      });
-    }
-
-    const roleHierarchy = {
-      'VIEWER': 0,
-      'DEVELOPER': 1,
-      'SECURITY_ANALYST': 2,
-      'ADMIN': 3,
-    };
-
-    const userLevel = roleHierarchy[req.user.role as keyof typeof roleHierarchy] || 0;
-    const requiredLevel = roleHierarchy[requiredRole as keyof typeof roleHierarchy] || 0;
-
-    if (userLevel < requiredLevel) {
-      return res.status(403).json({
-        error: 'Insufficient permissions'
-      });
-    }
-
-    next();
-  };
-};

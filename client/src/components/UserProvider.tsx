@@ -11,7 +11,6 @@ interface User {
   id: string;
   email: string;
   name: string;
-  role: string;
   avatar?: string;
   projects: string[];
   preferences: {
@@ -171,7 +170,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({
           )}
           <div className="hidden md:block text-left">
             <p className="text-sm font-medium text-white">{user.name}</p>
-            <p className="text-xs text-gray-400">{user.role.replace('_', ' ')}</p>
+            <p className="text-xs text-gray-400">{user.email}</p>
           </div>
           <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
         </motion.button>
@@ -211,11 +210,6 @@ export const UserProfile: React.FC<UserProfileProps> = ({
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-white truncate">{user.name}</p>
                       <p className="text-xs text-gray-400 truncate">{user.email}</p>
-                      <div className="flex items-center mt-1">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-500/20 text-blue-400">
-                          {user.role.replace('_', ' ')}
-                        </span>
-                      </div>
                     </div>
                   </div>
                 </div>
