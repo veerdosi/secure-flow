@@ -229,10 +229,13 @@ export default function ProjectsPage() {
                 <div>
                   <p className="text-gray-400 text-sm font-medium">Average Security Score</p>
                   <p className="text-2xl font-bold text-cyber-green">
-                    {projects.length > 0
-                      ? Math.round(projects.reduce((acc, p) => acc + (p.latestAnalysis?.securityScore || 0), 0) / projects.length)
-                      : 0
-                    }
+                    {(() => {
+                      const projectsWithAnalysis = projects.filter(p => p.latestAnalysis);
+                      if (projectsWithAnalysis.length === 0) return 'N/A';
+                      return Math.round(
+                        projectsWithAnalysis.reduce((acc, p) => acc + (p.latestAnalysis?.securityScore || 0), 0) / projectsWithAnalysis.length
+                      );
+                    })()}
                   </p>
                 </div>
                 <Shield className="w-8 h-8 text-cyber-green" />
@@ -268,7 +271,10 @@ export default function ProjectsPage() {
                 <div>
                   <p className="text-gray-400 text-sm font-medium">Active Scans</p>
                   <p className="text-2xl font-bold text-cyber-blue">
-                    {projects.filter(p => p.latestAnalysis?.status === 'IN_PROGRESS' || p.latestAnalysis?.status === 'PENDING').length}
+                    {projects.filter(p => 
+                      p.latestAnalysis?.status === 'IN_PROGRESS' || 
+                      p.latestAnalysis?.status === 'PENDING'
+                    ).length}
                   </p>
                 </div>
                 <Activity className="w-8 h-8 text-cyber-blue" />
