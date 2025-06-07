@@ -69,7 +69,7 @@ export interface SecurityAnalysis {
   aiAnalysis: string;
   remediationSteps: RemediationStep[];
   complianceScore: ComplianceScore;
-  status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED';
+  status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED' | 'AWAITING_APPROVAL';
   stage?: string;
   progress?: number;
   startedAt?: string;
@@ -81,6 +81,36 @@ export interface SecurityAnalysis {
   commitMessage?: string;
   author?: GitAuthor;
   error?: string;
+  // Human-in-the-Loop fields
+  proposedRemediations?: RemediationAction[];
+  humanApproval?: HumanApproval;
+  autoRemediationEnabled?: boolean;
+}
+
+export interface RemediationAction {
+  id: string;
+  type: 'CODE_FIX' | 'DEPENDENCY_UPDATE' | 'CONFIG_CHANGE' | 'SECURITY_PATCH';
+  title: string;
+  description: string;
+  file: string;
+  lineNumber?: number;
+  originalCode?: string;
+  proposedCode?: string;
+  severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  automated: boolean;
+  estimatedRisk: 'LOW' | 'MEDIUM' | 'HIGH';
+  confidence: number;
+}
+
+export interface HumanApproval {
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  approvedBy?: string;
+  approvedAt?: string;
+  rejectedBy?: string;
+  rejectedAt?: string;
+  approvedActions: string[];
+  rejectedActions: string[];
+  comments?: string;
 }
 
 export interface Vulnerability {

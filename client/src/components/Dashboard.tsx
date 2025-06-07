@@ -6,6 +6,8 @@ import { SecurityAnalysis, Project, Vulnerability } from '../types';
 import ThreatModelVisualization from './ThreatModelVisualization';
 import RealTimeAnalysisFeed from './RealTimeAnalysisFeed';
 import VulnerabilityHeatmap from './VulnerabilityHeatmap';
+import AnalysisHistory from './AnalysisHistory';
+import RemediationApproval from './RemediationApproval';
 import {
   Clock,
   AlertTriangle,
@@ -22,7 +24,10 @@ import {
   Zap,
   Target,
   Database,
-  Users
+  Users,
+  CheckCircle,
+  XCircle,
+  PlayCircle
 } from 'lucide-react';
 
 interface DashboardProps {
@@ -30,7 +35,7 @@ interface DashboardProps {
   projectData?: Project;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ projectId: propProjectId, projectData }) => {
+const Dashboard = ({ projectId: propProjectId, projectData }: DashboardProps) => {
   const router = useRouter();
   const { projectId: routerProjectId } = router.query;
   const projectId = propProjectId || routerProjectId;
@@ -38,6 +43,8 @@ const Dashboard: React.FC<DashboardProps> = ({ projectId: propProjectId, project
   const [project, setProject] = useState<Project | null>(projectData || null);
   const [loading, setLoading] = useState(!projectData);
   const [error, setError] = useState<string | null>(null);
+  const [showApprovalModal, setShowApprovalModal] = useState(false);
+  const [pendingApproval, setPendingApproval] = useState<any>(null);
 
   useEffect(() => {
     if (projectData) {
@@ -80,38 +87,51 @@ const Dashboard: React.FC<DashboardProps> = ({ projectId: propProjectId, project
           securityScore: latestAnalysis.securityScore || 0,
           threatLevel: latestAnalysis.threatLevel || 'LOW',
           vulnerabilities: latestAnalysis.vulnerabilities || [],
-          threatModel: latestAnalysis.threatModel || {
-            nodes: [],
-            edges: [],
-            attackVectors: [],
-            attackSurface: {
-              endpoints: 0,
-              inputPoints: 0,
-              outputPoints: 0,
-              externalDependencies: 0,
-              privilegedFunctions: 0
-            }
-          },
+          threatModel: latestAnalysis.threatModel || { nodes: [], edges: [] },
           aiAnalysis: latestAnalysis.aiAnalysis || '',
           remediationSteps: latestAnalysis.remediationSteps || [],
-          complianceScore: latestAnalysis.complianceScore || {
-            owasp: 0,
-            pci: 0,
-            sox: 0,
-            gdpr: 0,
-            iso27001: 0
-          },
-          status: latestAnalysis.status,
-          userId: latestAnalysis.userId || latestAnalysis.createdBy || ''
+          complianceScore: latestAnalysis.complianceScore || {},
+          userId: latestAnalysis.userId || '',
+          status: latestAnalysis.status || 'COMPLETED',
+          proposedRemediations: latestAnalysis.proposedRemediations || [],
+          humanApproval: latestAnalysis.humanApproval
         };
 
         setAnalysis(formattedAnalysis);
+        
+        // Check if this analysis needs human approval
+        if (latestAnalysis.status === 'AWAITING_APPROVAL' && latestAnalysis.proposedRemediations?.length > 0) {
+          setPendingApproval(latestAnalysis);
+          setShowApprovalModal(true);
+        }
       }
     } catch (error: any) {
       console.error('Failed to fetch analysis:', error);
-      setError('Failed to load analysis data');
-    } finally {
-      setLoading(false);
+    }
+  };
+
+  const handleApprovalUpdate = () => {
+    setShowApprovalModal(false);
+    setPendingApproval(null);
+    fetchLatestAnalysis(); // Refresh data after approval
+  };
+
+  const getAnalysisStatusInfo = () => {
+    if (!analysis) return { status: 'No Analysis', color: 'bg-gray-500/20 text-gray-400 border-gray-500/50', icon: null };
+    
+    switch (analysis.status) {
+      case 'PENDING':
+        return { status: 'Pending', color: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50', icon: <Clock className="w-3 h-3" /> };
+      case 'IN_PROGRESS':
+        return { status: 'Running', color: 'bg-blue-500/20 text-blue-400 border-blue-500/50', icon: <PlayCircle className="w-3 h-3" /> };
+      case 'AWAITING_APPROVAL':
+        return { status: 'Needs Approval', color: 'bg-orange-500/20 text-orange-400 border-orange-500/50', icon: <AlertTriangle className="w-3 h-3" /> };
+      case 'COMPLETED':
+        return { status: 'Completed', color: 'bg-green-500/20 text-green-400 border-green-500/50', icon: <CheckCircle className="w-3 h-3" /> };
+      case 'FAILED':
+        return { status: 'Failed', color: 'bg-red-500/20 text-red-400 border-red-500/50', icon: <XCircle className="w-3 h-3" /> };
+      default:
+        return { status: 'Unknown', color: 'bg-gray-500/20 text-gray-400 border-gray-500/50', icon: null };
     }
   };
 
@@ -280,14 +300,29 @@ const Dashboard: React.FC<DashboardProps> = ({ projectId: propProjectId, project
               </div>
             </div>
             <div className="flex items-center space-x-3">
-              <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${analysis ? 'bg-green-500/20 text-green-400 border-green-500/50' : 'bg-gray-500/20 text-gray-400 border-gray-500/50'}`}>
-                {analysis ? 'Analyzed' : 'Not Analyzed'}
-              </span>
+              {(() => {
+                const statusInfo = getAnalysisStatusInfo();
+                return (
+                  <span className={`px-3 py-1 rounded-full text-xs font-semibold border flex items-center space-x-1 ${statusInfo.color}`}>
+                    {statusInfo.icon}
+                    <span>{statusInfo.status}</span>
+                  </span>
+                );
+              })()}
               {analysis && (
                 <span className="text-gray-400 text-sm flex items-center">
                   <Clock className="w-4 h-4 mr-1" />
                   Last scan: {formatTimestamp(analysis.timestamp)}
                 </span>
+              )}
+              {analysis?.status === 'AWAITING_APPROVAL' && (
+                <button
+                  onClick={() => setShowApprovalModal(true)}
+                  className="bg-orange-600 hover:bg-orange-700 text-white text-xs px-3 py-1 rounded-lg transition-colors flex items-center"
+                >
+                  <AlertTriangle className="w-3 h-3 mr-1" />
+                  Review Required
+                </button>
               )}
               <div className="flex gap-2">
                 <button
@@ -464,11 +499,21 @@ const Dashboard: React.FC<DashboardProps> = ({ projectId: propProjectId, project
                 </div>
               </motion.div>
 
-              {/* Real-Time Analysis Feed */}
+              {/* Analysis History */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.5 }}
+                className="bg-dark-card border border-dark-border rounded-xl p-6"
+              >
+                <AnalysisHistory projectId={projectId as string} timeRange={30} />
+              </motion.div>
+
+              {/* Real-Time Analysis Feed */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.6 }}
                 className="bg-dark-card border border-dark-border rounded-xl p-6"
               >
                 <div className="flex items-center justify-between mb-4">
@@ -480,6 +525,48 @@ const Dashboard: React.FC<DashboardProps> = ({ projectId: propProjectId, project
                 </div>
                 <div className="space-y-3 max-h-80 overflow-y-auto scrollbar-thin">
                   <RealTimeAnalysisFeed analysis={analysis} />
+                </div>
+              </motion.div>
+
+              {/* Code Vulnerability Heatmap */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.7 }}
+                className="lg:col-span-2 bg-dark-card border border-dark-border rounded-xl p-6"
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-white">Code Vulnerability Heatmap</h3>
+                  <FileText className="w-5 h-5 text-gray-400" />
+                </div>
+
+                <div className="mb-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-gray-400 text-sm">Project Files</span>
+                    <span className="text-gray-500 text-xs">Risk Levels</span>
+                  </div>
+                  <div className="flex items-center justify-end space-x-4 text-xs">
+                    <div className="flex items-center">
+                      <div className="w-3 h-3 bg-red-500 rounded mr-1"></div>
+                      <span className="text-gray-400">Critical</span>
+                    </div>
+                    <div className="flex items-center">
+                      <div className="w-3 h-3 bg-orange-500 rounded mr-1"></div>
+                      <span className="text-gray-400">High</span>
+                    </div>
+                    <div className="flex items-center">
+                      <div className="w-3 h-3 bg-yellow-500 rounded mr-1"></div>
+                      <span className="text-gray-400">Medium</span>
+                    </div>
+                    <div className="flex items-center">
+                      <div className="w-3 h-3 bg-green-500 rounded mr-1"></div>
+                      <span className="text-gray-400">Low</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="max-h-64 overflow-y-auto scrollbar-thin">
+                  <VulnerabilityHeatmap vulnerabilities={analysis.vulnerabilities} />
                 </div>
               </motion.div>
 
@@ -567,6 +654,38 @@ const Dashboard: React.FC<DashboardProps> = ({ projectId: propProjectId, project
           </motion.div>
         )}
       </div>
+
+      {/* Human-in-the-Loop Approval Modal */}
+      {showApprovalModal && pendingApproval && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="relative"
+            >
+              <div className="absolute top-4 right-4 z-10">
+                <button
+                  onClick={() => setShowApprovalModal(false)}
+                  className="bg-gray-800 hover:bg-gray-700 text-white p-2 rounded-lg transition-colors"
+                >
+                  <XCircle className="w-5 h-5" />
+                </button>
+              </div>
+              <RemediationApproval
+                analysisId={pendingApproval.id || pendingApproval._id}
+                proposedRemediations={pendingApproval.proposedRemediations || []}
+                humanApproval={pendingApproval.humanApproval || { 
+                  status: 'PENDING', 
+                  approvedActions: [], 
+                  rejectedActions: [] 
+                }}
+                onApprovalUpdate={handleApprovalUpdate}
+              />
+            </motion.div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

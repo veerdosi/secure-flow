@@ -1,11 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { TrendingUp, TrendingDown, Activity, AlertTriangle } from 'lucide-react';
-import { Line } from 'react-chartjs-2';
-import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, TimeScale } from 'chart.js';
-import 'chartjs-adapter-date-fns';
-
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, TimeScale);
+import { TrendingUp, TrendingDown, Activity, AlertTriangle, Calendar } from 'lucide-react';
 
 interface AnalysisHistoryData {
   analyses: number;
@@ -46,81 +41,6 @@ export default function AnalysisHistory({ projectId, timeRange = 30 }: { project
     }
   };
 
-  if (loading) {
-    return (
-      <div className="bg-dark-card border border-dark-border rounded-xl p-6">
-        <div className="animate-pulse space-y-4">
-          <div className="h-4 bg-gray-700 rounded w-1/4"></div>
-          <div className="h-32 bg-gray-700 rounded"></div>
-        </div>
-      </div>
-    );
-  }
-
-  if (error || !data) {
-    return (
-      <div className="bg-dark-card border border-dark-border rounded-xl p-6">
-        <div className="text-center text-red-400">
-          <AlertTriangle className="w-8 h-8 mx-auto mb-2" />
-          <p>{error || 'Failed to load analysis history'}</p>
-        </div>
-      </div>
-    );
-  }
-
-  const chartData = {
-    labels: data.history.map(item => new Date(item.timestamp)),
-    datasets: [
-      {
-        label: 'Security Score',
-        data: data.history.map(item => item.securityScore),
-        borderColor: '#00D2FF',
-        backgroundColor: 'rgba(0, 210, 255, 0.1)',
-        tension: 0.4,
-        fill: true
-      },
-      {
-        label: 'Vulnerabilities',
-        data: data.history.map(item => item.vulnerabilityCount),
-        borderColor: '#FF6B6B',
-        backgroundColor: 'rgba(255, 107, 107, 0.1)',
-        tension: 0.4,
-        yAxisID: 'y1'
-      }
-    ]
-  };
-
-  const chartOptions = {
-    responsive: true,
-    interaction: { intersect: false, mode: 'index' as const },
-    plugins: {
-      legend: { labels: { color: '#E5E7EB' } },
-      tooltip: { backgroundColor: '#1F2937', titleColor: '#E5E7EB', bodyColor: '#E5E7EB' }
-    },
-    scales: {
-      x: {
-        type: 'time' as const,
-        time: { displayFormats: { day: 'MMM dd' } },
-        grid: { color: '#374151' },
-        ticks: { color: '#9CA3AF' }
-      },
-      y: {
-        position: 'left' as const,
-        grid: { color: '#374151' },
-        ticks: { color: '#9CA3AF' },
-        title: { display: true, text: 'Security Score', color: '#9CA3AF' }
-      },
-      y1: {
-        type: 'linear' as const,
-        display: true,
-        position: 'right' as const,
-        grid: { drawOnChartArea: false },
-        ticks: { color: '#9CA3AF' },
-        title: { display: true, text: 'Vulnerabilities', color: '#9CA3AF' }
-      }
-    }
-  };
-
   const getThreatColor = (level: string) => {
     switch (level) {
       case 'CRITICAL': return 'text-red-400';
@@ -131,57 +51,138 @@ export default function AnalysisHistory({ projectId, timeRange = 30 }: { project
     }
   };
 
+  const getScoreColor = (score: number) => {
+    if (score >= 80) return 'text-green-400';
+    if (score >= 60) return 'text-yellow-400';
+    if (score >= 40) return 'text-orange-400';
+    return 'text-red-400';
+  };
+
+  if (loading) {
+    return (
+      <>
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-semibold flex items-center">
+            <Activity className="w-5 h-5 mr-2 text-cyber-blue" />
+            Analysis History
+          </h3>
+        </div>
+        <div className="animate-pulse space-y-4">
+          <div className="grid grid-cols-3 gap-4">
+            <div className="h-16 bg-gray-700 rounded"></div>
+            <div className="h-16 bg-gray-700 rounded"></div>
+            <div className="h-16 bg-gray-700 rounded"></div>
+          </div>
+          <div className="h-32 bg-gray-700 rounded"></div>
+        </div>
+      </>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <>
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-semibold flex items-center">
+            <Activity className="w-5 h-5 mr-2 text-cyber-blue" />
+            Analysis History
+          </h3>
+        </div>
+        <div className="text-center text-red-400">
+          <AlertTriangle className="w-8 h-8 mx-auto mb-2" />
+          <p>{error || 'Failed to load analysis history'}</p>
+        </div>
+      </>
+    );
+  }
+
+  const recentHistory = data.history.slice(0, 5);
+
   return (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-dark-card border border-dark-border rounded-xl p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h3 className="text-xl font-semibold flex items-center">
+    <>
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="text-lg font-semibold flex items-center">
           <Activity className="w-5 h-5 mr-2 text-cyber-blue" />
           Analysis History
         </h3>
         <select
           value={selectedRange}
           onChange={(e) => setSelectedRange(Number(e.target.value))}
-          className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm"
+          className="bg-gray-800 border border-gray-700 rounded-lg px-2 py-1 text-white text-xs"
         >
-          <option value={7}>Last 7 days</option>
-          <option value={30}>Last 30 days</option>
-          <option value={90}>Last 90 days</option>
+          <option value={7}>7d</option>
+          <option value={30}>30d</option>
+          <option value={90}>90d</option>
         </select>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="bg-gray-800 rounded-lg p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-400">Average Score</p>
-              <p className="text-2xl font-bold">{Math.round(data.summary.averageScore)}</p>
-            </div>
-            <TrendingUp className="w-8 h-8 text-green-400" />
+      {/* Summary Cards */}
+      <div className="grid grid-cols-3 gap-3 mb-4">
+        <div className="bg-gray-800 rounded-lg p-3">
+          <div className="text-center">
+            <p className="text-xs text-gray-400">Avg Score</p>
+            <p className={`text-lg font-bold ${getScoreColor(data.summary.averageScore)}`}>
+              {Math.round(data.summary.averageScore)}
+            </p>
           </div>
         </div>
-        <div className="bg-gray-800 rounded-lg p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-400">Total Vulnerabilities</p>
-              <p className="text-2xl font-bold">{data.summary.totalVulnerabilities}</p>
-            </div>
-            <AlertTriangle className="w-8 h-8 text-yellow-400" />
+        <div className="bg-gray-800 rounded-lg p-3">
+          <div className="text-center">
+            <p className="text-xs text-gray-400">Total Vulns</p>
+            <p className="text-lg font-bold text-yellow-400">{data.summary.totalVulnerabilities}</p>
           </div>
         </div>
-        <div className="bg-gray-800 rounded-lg p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-400">Critical Findings</p>
-              <p className="text-2xl font-bold">{data.summary.criticalFindings}</p>
-            </div>
-            <TrendingDown className="w-8 h-8 text-red-400" />
+        <div className="bg-gray-800 rounded-lg p-3">
+          <div className="text-center">
+            <p className="text-xs text-gray-400">Critical</p>
+            <p className="text-lg font-bold text-red-400">{data.summary.criticalFindings}</p>
           </div>
         </div>
       </div>
 
-      <div className="h-64">
-        <Line data={chartData} options={chartOptions} />
+      {/* Recent Analysis Timeline */}
+      <div>
+        <h4 className="text-sm font-medium text-gray-300 mb-3">Recent Analyses</h4>
+        <div className="space-y-2 max-h-40 overflow-y-auto">
+          {recentHistory.map((item, index) => (
+            <div key={index} className="bg-gray-800/50 rounded-lg p-3 border border-gray-700">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center space-x-2">
+                  <span className={`w-2 h-2 rounded-full ${getThreatColor(item.threatLevel).replace('text-', 'bg-')}`}></span>
+                  <span className="text-xs text-gray-400">
+                    {new Date(item.timestamp).toLocaleDateString()}
+                  </span>
+                  <span className="text-xs px-2 py-1 bg-gray-700 rounded text-gray-300">
+                    {item.triggeredBy}
+                  </span>
+                </div>
+                <span className={`text-sm font-medium ${getScoreColor(item.securityScore)}`}>
+                  {item.securityScore}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-xs text-gray-400">
+                <span>{item.vulnerabilityCount} vulnerabilities</span>
+                <div className="flex space-x-3">
+                  {item.newVulnerabilities > 0 && (
+                    <span className="text-red-400">+{item.newVulnerabilities} new</span>
+                  )}
+                  {item.resolvedVulnerabilities > 0 && (
+                    <span className="text-green-400">-{item.resolvedVulnerabilities} fixed</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
-    </motion.div>
+
+      {data.history.length === 0 && (
+        <div className="text-center py-8">
+          <Calendar className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+          <p className="text-gray-400 text-sm">No analysis history available</p>
+          <p className="text-gray-500 text-xs">Run some analyses to see trends</p>
+        </div>
+      )}
+    </>
   );
 }
