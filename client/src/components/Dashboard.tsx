@@ -649,26 +649,193 @@ const Dashboard = ({ projectId: propProjectId, projectData }: DashboardProps) =>
             )}
           </div>
         ) : (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-dark-card border border-dark-border rounded-xl p-12 text-center"
-          >
-            <Shield className="h-16 w-16 mx-auto text-gray-600 mb-6" />
-            <h3 className="text-2xl font-semibold text-white mb-3">No Security Analysis Yet</h3>
-            <p className="text-gray-400 mb-8 max-w-md mx-auto">
-              Run your first security analysis to get comprehensive insights about your project's security posture,
-              threat model, and vulnerability assessment.
-            </p>
-            <button
-              onClick={handleRunAnalysis}
-              disabled={loading}
-              className="inline-flex items-center px-6 py-3 border border-transparent rounded-lg text-sm font-medium text-black bg-cyber-blue hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          <div className="space-y-8">
+            {/* Empty State - Top Row with placeholder widgets */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Security Score */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="bg-dark-card border border-dark-border rounded-xl p-6"
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-white">Security Score</h3>
+                  <TrendingUp className="w-5 h-5 text-gray-500" />
+                </div>
+                <div className="text-center">
+                  <div className="w-32 h-32 mx-auto flex items-center justify-center">
+                    <div className="text-center">
+                      <div className="text-5xl font-bold text-gray-500 mb-2">--</div>
+                      <div className="text-gray-500 text-sm">/100</div>
+                    </div>
+                  </div>
+                  <p className="text-gray-500 text-sm mt-4">
+                    Run analysis to get security score
+                  </p>
+                </div>
+              </motion.div>
+
+              {/* Threat Level */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="bg-dark-card border border-dark-border rounded-xl p-6"
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-white">Threat Level</h3>
+                  <AlertTriangle className="w-5 h-5 text-gray-500" />
+                </div>
+                <div className="text-center mb-4">
+                  <div className="flex items-center justify-center mb-2">
+                    <AlertTriangle className="w-8 h-8 text-gray-500 mr-2" />
+                  </div>
+                  <div className="inline-flex px-4 py-2 rounded-lg text-lg font-bold border bg-gray-500/20 text-gray-500 border-gray-500/50">
+                    UNKNOWN
+                  </div>
+                </div>
+                <div className="bg-dark-bg/50 rounded-lg p-4 border border-gray-500/30">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-gray-500 text-sm font-medium">Vulnerabilities</span>
+                    <span className="text-gray-500 text-lg font-bold">--</span>
+                  </div>
+                  <p className="text-gray-500 text-xs">Run analysis to scan for issues</p>
+                </div>
+              </motion.div>
+
+              {/* System Components */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="bg-dark-card border border-dark-border rounded-xl p-6"
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-white">System Components</h3>
+                  <Target className="w-5 h-5 text-gray-500" />
+                </div>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <div className="w-3 h-3 bg-gray-500 rounded-full mr-3"></div>
+                      <span className="text-gray-500 text-sm">Secure</span>
+                    </div>
+                    <span className="text-gray-500 font-semibold">--</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <div className="w-3 h-3 bg-gray-500 rounded-full mr-3"></div>
+                      <span className="text-gray-500 text-sm">Medium Risk</span>
+                    </div>
+                    <span className="text-gray-500 font-semibold">--</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <div className="w-3 h-3 bg-gray-500 rounded-full mr-3"></div>
+                      <span className="text-gray-500 text-sm">Vulnerable</span>
+                    </div>
+                    <span className="text-gray-500 font-semibold">--</span>
+                  </div>
+                </div>
+                <div className="mt-4 pt-3 border-t border-gray-700">
+                  <p className="text-gray-500 text-xs text-center">
+                    No analysis data available
+                  </p>
+                </div>
+              </motion.div>
+            </div>
+
+            {/* Empty threat model visualization */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+              className="bg-dark-card border border-dark-border rounded-xl p-6"
             >
-              <Play className="h-5 w-5 mr-2" />
-              {loading ? 'Starting Analysis...' : 'Run First Analysis'}
-            </button>
-          </motion.div>
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-semibold text-white">Interactive Threat Model</h3>
+                <div className="flex items-center space-x-4">
+                  <div className="flex items-center space-x-2 text-sm">
+                    <Eye className="w-4 h-4 text-gray-500" />
+                    <span className="text-gray-500">No data available</span>
+                  </div>
+                </div>
+              </div>
+              <div className="h-96 bg-dark-bg/30 rounded-lg border border-gray-700 flex items-center justify-center">
+                <div className="text-center">
+                  <Shield className="h-16 w-16 mx-auto text-gray-600 mb-4" />
+                  <h4 className="text-xl font-semibold text-white mb-2">No Security Analysis Yet</h4>
+                  <p className="text-gray-400 mb-6 max-w-md mx-auto">
+                    Run your first security analysis to get comprehensive insights about your project's security posture.
+                  </p>
+                  <button
+                    onClick={handleRunAnalysis}
+                    disabled={loading}
+                    className="inline-flex items-center px-6 py-3 border border-transparent rounded-lg text-sm font-medium text-black bg-cyber-blue hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <Play className="h-5 w-5 mr-2" />
+                    {loading ? 'Starting Analysis...' : 'Run First Analysis'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Empty analysis history and feed */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 }}
+                className="bg-dark-card border border-dark-border rounded-xl p-6"
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-white">Analysis History</h3>
+                  <Activity className="w-5 h-5 text-gray-500" />
+                </div>
+                <div className="text-center py-8">
+                  <Database className="w-12 h-12 mx-auto text-gray-600 mb-3" />
+                  <p className="text-gray-500 text-sm">No analysis history available</p>
+                </div>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.6 }}
+                className="bg-dark-card border border-dark-border rounded-xl p-6"
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-white">Real-Time Analysis Feed</h3>
+                  <div className="flex items-center space-x-1">
+                    <div className="w-2 h-2 bg-gray-500 rounded-full"></div>
+                    <span className="text-gray-500 text-sm font-medium">Waiting for analysis</span>
+                  </div>
+                </div>
+                <div className="text-center py-8">
+                  <Activity className="w-12 h-12 mx-auto text-gray-600 mb-3" />
+                  <p className="text-gray-500 text-sm">No real-time data available</p>
+                </div>
+              </motion.div>
+            </div>
+
+            {/* Empty vulnerability heatmap */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.7 }}
+              className="bg-dark-card border border-dark-border rounded-xl p-6"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-white">Code Vulnerability Heatmap</h3>
+                <FileText className="w-5 h-5 text-gray-500" />
+              </div>
+              <div className="text-center py-8">
+                <FileText className="w-12 h-12 mx-auto text-gray-600 mb-3" />
+                <p className="text-gray-500 text-sm">No vulnerability data available</p>
+              </div>
+            </motion.div>
+          </div>
         )}
       </div>
 
