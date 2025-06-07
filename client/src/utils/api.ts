@@ -31,10 +31,14 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      // Clear token and redirect to login
-      Cookies.remove('auth_token');
-      if (typeof window !== 'undefined') {
+    // Only handle 401 for authenticated routes, not auth endpoints
+    if (error.response?.status === 401 && 
+        !error.config?.url?.includes('/api/auth/') &&
+        typeof window !== 'undefined') {
+      // Clear token and redirect to login only if not already on auth pages
+      const currentPath = window.location.pathname;
+      if (!currentPath.includes('/login') && !currentPath.includes('/sign-up')) {
+        Cookies.remove('auth_token');
         window.location.href = '/login';
       }
     }
