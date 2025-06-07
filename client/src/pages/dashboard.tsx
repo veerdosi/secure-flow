@@ -61,7 +61,7 @@ export default function DashboardPage() {
     }
   }
 
-  const checkSystemHealth = async () => {
+  const checkSystemHealth = async (retryCount = 0) => {
     try {
       const health = await systemAPI.validateCredentials()
       setSystemHealth(health)
@@ -71,9 +71,32 @@ export default function DashboardPage() {
       }
     } catch (error: any) {
       console.error('System health check failed:', error)
+      
+      // Retry logic for transient failures
+      if (retryCount < 2) {
+        const delay = Math.pow(2, retryCount) * 1000
+        setTimeout(() => {
+          checkSystemHealth(retryCount + 1)
+        }, delay)
+        return
+      }
+      
+      // Only show system error after retries have failed
       setSystemHealth({
         status: 'error',
-        message: 'Failed to validate system configuration'
+        message: 'Failed to validate system configuration',
+        details: {
+          errors: ['Unable to connect to system validation service'],
+          environment: {
+            mongodbUri: false,
+            geminiApiKey: false,
+            jwtSecret: false
+          },
+          services: {
+            mongodb: false,
+            ai: false
+          }
+        }
       })
     }
   }

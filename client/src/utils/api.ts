@@ -1,16 +1,45 @@
 import axios from 'axios';
 import Cookies from 'js-cookie';
 
-// Configure base URL
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || (typeof window !== 'undefined' ? window.location.origin : '') || 'http://localhost:3001';
+// Configure base URL with proper fallbacks for different environments
+const getAPIBaseURL = () => {
+  // If explicit API URL is set, use it
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL;
+  }
+  
+  // In browser environment
+  if (typeof window !== 'undefined') {
+    const { protocol, hostname, port } = window.location;
+    
+    // Production deployment on Vercel or similar
+    if (hostname.includes('vercel.app') || 
+        hostname.includes('netlify.app') || 
+        !hostname.includes('localhost')) {
+      return `${protocol}//${hostname}`;
+    }
+    
+    // Local development - use API port
+    return `${protocol}//${hostname}:3001`;
+  }
+  
+  // Server-side fallback
+  return process.env.API_BASE_URL || 'http://localhost:3001';
+};
 
-// Create axios instance
+const API_BASE_URL = getAPIBaseURL();
+
+// Create axios instance with enhanced configuration
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 30000, // 30 seconds timeout
+  timeout: 10000, // Reduced timeout for better UX
   headers: {
     'Content-Type': 'application/json',
   },
+  // Add retry configuration
+  validateStatus: (status) => {
+    return status < 500; // Don't throw for 4xx errors, handle them gracefully
+  }
 });
 
 // Request interceptor to add auth token
@@ -27,24 +56,59 @@ api.interceptors.request.use(
   }
 );
 
-// Response interceptor for error handling
+// Response interceptor for error handling with retry logic
+let retryCount = 0;
+const MAX_RETRIES = 3;
+
 api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    // Only handle 401 for authenticated routes, not auth endpoints
-    if (error.response?.status === 401 && 
-        !error.config?.url?.includes('/api/auth/') &&
+  (response) => {
+    retryCount = 0; // Reset on successful response
+    return response;
+  },
+  async (error) => {
+    const { config, response } = error;
+    
+    // Handle 401 for authenticated routes
+    if (response?.status === 401 && 
+        !config?.url?.includes('/api/auth/') &&
         typeof window !== 'undefined') {
-      // Clear token and redirect to login only if not already on auth pages
       const currentPath = window.location.pathname;
       if (!currentPath.includes('/login') && !currentPath.includes('/sign-up')) {
         Cookies.remove('auth_token');
         window.location.href = '/login';
       }
     }
+    
+    // Retry logic for network errors and 5xx server errors
+    if (shouldRetry(error) && retryCount < MAX_RETRIES) {
+      retryCount++;
+      
+      // Exponential backoff
+      const delay = Math.pow(2, retryCount) * 1000;
+      await new Promise(resolve => setTimeout(resolve, delay));
+      
+      console.log(`Retrying request (attempt ${retryCount}/${MAX_RETRIES})...`);
+      return api.request(config);
+    }
+    
+    retryCount = 0;
     return Promise.reject(error);
   }
 );
+
+// Helper function to determine if request should be retried
+const shouldRetry = (error: any): boolean => {
+  // Network errors
+  if (!error.response) return true;
+  
+  // Server errors (5xx)
+  if (error.response.status >= 500) return true;
+  
+  // Specific error codes that might be transient
+  if ([408, 429, 502, 503, 504].includes(error.response.status)) return true;
+  
+  return false;
+};
 
 // Types
 export interface LoginData {
@@ -197,21 +261,76 @@ export const analysisAPI = {
   },
 };
 
-// System API
+// System API with enhanced error handling
 export const systemAPI = {
   getHealth: async () => {
-    const response = await api.get('/api/system/health');
-    return response.data;
+    try {
+      const response = await api.get('/api/system/health');
+      return response.data;
+    } catch (error: any) {
+      console.warn('Health check failed:', error);
+      // Return a degraded status instead of throwing
+      return {
+        status: 'degraded',
+        error: handleApiError(error),
+        timestamp: new Date().toISOString()
+      };
+    }
   },
 
   validateCredentials: async () => {
-    const response = await api.get('/api/system/validate');
-    return response.data;
+    try {
+      const response = await api.get('/api/system/validate');
+      return response.data;
+    } catch (error: any) {
+      console.warn('System validation failed:', error);
+      
+      // If it's a network error, return a specific error state
+      if (!error.response) {
+        return {
+          status: 'error',
+          details: {
+            errors: ['Unable to connect to server. Please check your internet connection.'],
+            environment: {
+              mongodbUri: false,
+              geminiApiKey: false,
+              jwtSecret: false
+            },
+            services: {
+              mongodb: false,
+              ai: false
+            }
+          }
+        };
+      }
+      
+      // Return error details for UI to handle gracefully
+      return {
+        status: 'error',
+        details: {
+          errors: [handleApiError(error)],
+          environment: {
+            mongodbUri: false,
+            geminiApiKey: false,
+            jwtSecret: false
+          },
+          services: {
+            mongodb: false,
+            ai: false
+          }
+        }
+      };
+    }
   },
 
   getMetrics: async () => {
-    const response = await api.get('/api/system/metrics');
-    return response.data;
+    try {
+      const response = await api.get('/api/system/metrics');
+      return response.data;
+    } catch (error: any) {
+      console.warn('Failed to get metrics:', error);
+      throw error;
+    }
   },
 };
 
