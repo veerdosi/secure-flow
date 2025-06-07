@@ -317,6 +317,53 @@ const Dashboard = ({ projectId: propProjectId, projectData }: DashboardProps) =>
     );
   }
 
+  if (!projectId) {
+    // No project selected - show overview dashboard
+    return (
+      <div className="min-h-screen bg-dark-bg text-white">
+        <div className="max-w-7xl mx-auto px-6 py-16">
+          <div className="text-center mb-12">
+            <Shield className="w-16 h-16 text-cyber-blue mx-auto mb-6" />
+            <h2 className="text-3xl font-bold mb-4">Security Dashboard</h2>
+            <p className="text-gray-400 text-lg">
+              Select a project from the dropdown to view detailed security analysis
+            </p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-dark-card border border-dark-border rounded-xl p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold">System Status</h3>
+                <Shield className="w-6 h-6 text-cyber-green" />
+              </div>
+              <p className="text-3xl font-bold text-cyber-green mb-2">Healthy</p>
+              <p className="text-gray-400 text-sm">All systems operational</p>
+            </div>
+            
+            <div className="bg-dark-card border border-dark-border rounded-xl p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold">Quick Actions</h3>
+                <Zap className="w-6 h-6 text-cyber-blue" />
+              </div>
+              <p className="text-gray-400 text-sm mb-4">Start by selecting a project</p>
+              <button className="w-full bg-cyber-blue text-black py-2 px-4 rounded-lg font-semibold">
+                View Projects
+              </button>
+            </div>
+            
+            <div className="bg-dark-card border border-dark-border rounded-xl p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold">Recent Activity</h3>
+                <Activity className="w-6 h-6 text-cyber-orange" />
+              </div>
+              <p className="text-gray-400 text-sm">No recent scans</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (!project) {
     return (
       <div className="min-h-screen bg-dark-bg text-white p-6">

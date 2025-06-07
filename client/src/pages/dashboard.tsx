@@ -65,14 +65,14 @@ export default function DashboardPage() {
       try {
         // Load projects if empty
         if (projects.length === 0) {
-          const projectData = await loadProjects()
-          
-          // Don't auto-select project, let user choose
-          if (projectData.length > 0 && router.query.project) {
-            const requestedProject = projectData.find((p: any) => p._id === router.query.project)
-            if (requestedProject) {
-              setSelectedProject(requestedProject)
-            }
+          await loadProjects()
+        }
+        
+        // Only select project if explicitly requested in URL
+        if (router.query.project && projects.length > 0) {
+          const requestedProject = projects.find((p: any) => p._id === router.query.project)
+          if (requestedProject) {
+            setSelectedProject(requestedProject)
           }
         }
         
@@ -92,15 +92,19 @@ export default function DashboardPage() {
     init()
   }, [user, loading, initialized])
 
-  // Handle URL project selection
+  // Handle URL project selection - only if different from current
   useEffect(() => {
-    if (router.query.project && projects.length > 0) {
+    if (router.query.project && projects.length > 0 && initialized) {
       const project = projects.find(p => p._id === router.query.project)
       if (project && project._id !== selectedProject?._id) {
         setSelectedProject(project)
+      } else if (!project && projects.length > 0) {
+        // Invalid project ID, redirect to first project
+        setSelectedProject(projects[0])
+        router.replace(`/dashboard?project=${projects[0]._id}`, undefined, { shallow: true })
       }
     }
-  }, [router.query.project, projects, selectedProject, setSelectedProject])
+  }, [router.query.project, projects, selectedProject, setSelectedProject, initialized])
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -229,105 +233,66 @@ export default function DashboardPage() {
     )
   }
 
-  // Dashboard with selected project
-  if (selectedProject) {
-    return (
-      <>
-        <Head>
-          <title>{`${selectedProject.name} - SecureFlow AI`}</title>
-        </Head>
-        <div className="min-h-screen bg-dark-bg text-white">
-          <div className="border-b border-dark-border bg-dark-card/50 backdrop-blur-sm">
-            <div className="max-w-7xl mx-auto px-6 py-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <Shield className="w-8 h-8 text-cyber-blue" />
-                  <div>
-                    <h1 className="text-2xl font-bold">SecureFlow AI</h1>
+  // Dashboard with or without selected project
+  return (
+    <>
+      <Head>
+        <title>{selectedProject ? `${selectedProject.name} - SecureFlow AI` : 'Dashboard - SecureFlow AI'}</title>
+      </Head>
+      <div className="min-h-screen bg-dark-bg text-white">
+        <div className="border-b border-dark-border bg-dark-card/50 backdrop-blur-sm">
+          <div className="max-w-7xl mx-auto px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <Shield className="w-8 h-8 text-cyber-blue" />
+                <div>
+                  <h1 className="text-2xl font-bold">SecureFlow AI</h1>
+                  {selectedProject && (
                     <p className="text-gray-400 text-sm">Project: {selectedProject.name}</p>
-                  </div>
-                  {projects.length > 1 && (
-                    <select
-                      value={selectedProject._id}
-                      onChange={(e) => {
-                        const project = projects.find(p => p._id === e.target.value)
-                        if (project) handleProjectChange(project)
-                      }}
-                      className="bg-dark-card border border-dark-border rounded-lg px-3 py-2 text-sm text-white focus:border-cyber-blue focus:outline-none"
-                    >
-                      {projects.map(project => (
-                        <option key={project._id} value={project._id}>
-                          {project.name}
-                        </option>
-                      ))}
-                    </select>
                   )}
                 </div>
-                <div className="flex items-center space-x-4">
-                  <motion.button
-                    onClick={() => router.push('/projects')}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    className="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors flex items-center"
+                {projects.length > 1 && (
+                  <select
+                    value={selectedProject?._id || ''}
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        const project = projects.find(p => p._id === e.target.value)
+                        if (project) handleProjectChange(project)
+                      } else {
+                        setSelectedProject(null)
+                        router.push('/dashboard', undefined, { shallow: true })
+                      }
+                    }}
+                    className="bg-dark-card border border-dark-border rounded-lg px-3 py-2 text-sm text-white focus:border-cyber-blue focus:outline-none"
                   >
-                    <GitBranch className="w-4 h-4 mr-2" />
-                    All Projects
-                  </motion.button>
-                  <motion.button
-                    onClick={() => setTriggerProjectSetup(true)}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    className="bg-cyber-blue hover:bg-blue-600 text-black font-semibold py-2 px-4 rounded-lg transition-colors flex items-center"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Project
-                  </motion.button>
-                  <UserProfile
-                    onGitLabConfigured={handleGitLabConfigured}
-                    showGitLabSettings={showGitLabSettings}
-                    setShowGitLabSettings={setShowGitLabSettings}
-                  />
-                </div>
+                    <option value="">All Projects</option>
+                    {projects.map(project => (
+                      <option key={project._id} value={project._id}>
+                        {project.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
-            </div>
-          </div>
-
-          <Dashboard projectId={selectedProject._id} />
-
-          {triggerProjectSetup && (
-            <ProjectSetup
-              onProjectCreated={handleProjectCreated}
-              triggerOpen={triggerProjectSetup}
-              onClose={() => setTriggerProjectSetup(false)}
-            />
-          )}
-
-          <GitLabSettings
-            isOpen={showGitLabSettings}
-            onClose={() => setShowGitLabSettings(false)}
-            onSuccess={handleGitLabConfigured}
-            currentSettings={user?.gitlabSettings}
-          />
-        </div>
-      </>
-    )
-  }
-
-  // Projects exist but none selected - show project selection
-  if (projects.length > 0) {
-    return (
-      <>
-        <Head>
-          <title>Select Project - SecureFlow AI</title>
-        </Head>
-        <div className="min-h-screen bg-dark-bg text-white">
-          <div className="border-b border-dark-border bg-dark-card/50 backdrop-blur-sm">
-            <div className="max-w-7xl mx-auto px-6 py-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <Shield className="w-8 h-8 text-cyber-blue" />
-                  <h1 className="text-2xl font-bold">SecureFlow AI</h1>
-                </div>
+              <div className="flex items-center space-x-4">
+                <motion.button
+                  onClick={() => router.push('/projects')}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors flex items-center"
+                >
+                  <GitBranch className="w-4 h-4 mr-2" />
+                  All Projects
+                </motion.button>
+                <motion.button
+                  onClick={() => setTriggerProjectSetup(true)}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="bg-cyber-blue hover:bg-blue-600 text-black font-semibold py-2 px-4 rounded-lg transition-colors flex items-center"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Project
+                </motion.button>
                 <UserProfile
                   onGitLabConfigured={handleGitLabConfigured}
                   showGitLabSettings={showGitLabSettings}
@@ -336,153 +301,17 @@ export default function DashboardPage() {
               </div>
             </div>
           </div>
-
-          <div className="max-w-7xl mx-auto px-6 py-16">
-            <div className="text-center mb-12">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="mb-8"
-              >
-                <Shield className="w-16 h-16 text-cyber-blue mx-auto mb-6" />
-                <h2 className="text-3xl font-bold mb-4">Select a Project</h2>
-                <p className="text-gray-400 text-lg">
-                  Choose a project to view its security analysis dashboard
-                </p>
-              </motion.div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
-              {projects.map((project, index) => (
-                <motion.div
-                  key={project._id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                  onClick={() => handleProjectChange(project)}
-                  className="bg-dark-card border border-dark-border rounded-xl p-6 hover:border-cyber-blue/50 transition-all cursor-pointer group"
-                >
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-xl font-semibold text-white group-hover:text-cyber-blue transition-colors">
-                      {project.name}
-                    </h3>
-                    <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-cyber-blue group-hover:translate-x-1 transition-all" />
-                  </div>
-                  <p className="text-gray-400 text-sm mb-4 truncate">{project.repositoryUrl}</p>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-500">Branch: {project.branch}</span>
-                    <span className="text-gray-500">Scan: {project.scanFrequency}</span>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </>
-    )
-  }
-
-  // No projects state
-  return (
-    <>
-      <Head>
-        <title>SecureFlow AI - Add Your First Project</title>
-      </Head>
-      <div className="min-h-screen bg-dark-bg text-white">
-        <div className="border-b border-dark-border bg-dark-card/50 backdrop-blur-sm">
-          <div className="max-w-7xl mx-auto px-6 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <Shield className="w-8 h-8 text-cyber-blue" />
-                <h1 className="text-2xl font-bold">SecureFlow AI</h1>
-              </div>
-              <UserProfile
-                onGitLabConfigured={handleGitLabConfigured}
-                showGitLabSettings={showGitLabSettings}
-                setShowGitLabSettings={setShowGitLabSettings}
-              />
-            </div>
-          </div>
         </div>
 
-        <div className="max-w-4xl mx-auto px-6 py-16">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center"
-          >
-            <GitBranch className="w-16 h-16 text-cyber-blue mx-auto mb-6" />
-            <h2 className="text-3xl font-bold mb-4">No Projects Configured</h2>
-            <p className="text-gray-400 mb-8 text-lg">
-              Connect your GitLab projects to start monitoring your code security in real-time.
-            </p>
+        <Dashboard projectId={selectedProject?._id} />
 
-            {!user.gitlabSettings?.apiToken ? (
-              <div className="bg-gradient-to-r from-orange-500/10 to-red-500/10 border border-orange-500/50 rounded-xl p-8 mb-8 max-w-2xl mx-auto">
-                <div className="flex items-center justify-center mb-4">
-                  <Settings className="w-8 h-8 text-orange-400 mr-3" />
-                  <h3 className="text-xl font-semibold text-orange-400">GitLab Configuration Required</h3>
-                </div>
-                <p className="text-gray-300 mb-6">
-                  Configure your GitLab API token to start adding projects.
-                </p>
-                <button
-                  onClick={() => setShowGitLabSettings(true)}
-                  className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-semibold py-3 px-6 rounded-lg transition-all flex items-center mx-auto"
-                >
-                  <Settings className="w-5 h-5 mr-2" />
-                  Configure GitLab Settings
-                  <ArrowRight className="w-5 h-5 ml-2" />
-                </button>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center">
-                <div className="bg-dark-card border border-dark-border rounded-xl p-8 mb-8 max-w-lg">
-                  <div className="text-center">
-                    <div className="w-12 h-12 bg-cyber-green/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <Shield className="w-6 h-6 text-cyber-green" />
-                    </div>
-                    <h3 className="text-lg font-semibold text-cyber-green mb-2">GitLab Connected!</h3>
-                    <p className="text-gray-400 mb-4">
-                      Your GitLab integration is ready. Add your first project to start monitoring.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <ProjectSetup
-                    onProjectCreated={handleProjectCreated}
-                    triggerOpen={triggerProjectSetup}
-                    buttonText="Add Your First Project"
-                    buttonIcon={<Plus className="w-5 h-5 mr-2" />}
-                  />
-                  <button
-                    onClick={() => router.push('/projects')}
-                    className="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-3 px-6 rounded-lg transition-colors flex items-center"
-                  >
-                    <GitBranch className="w-5 h-5 mr-2" />
-                    View All Projects
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {error && (
-              <div className="mt-6 bg-red-500/10 border border-red-500/50 rounded-lg p-4 max-w-lg mx-auto">
-                <p className="text-red-400">{error}</p>
-                <button
-                  onClick={() => {
-                    setInitialized(false)
-                    setError('')
-                  }}
-                  className="mt-2 text-cyber-blue hover:text-blue-400 text-sm underline"
-                >
-                  Try again
-                </button>
-              </div>
-            )}
-          </motion.div>
-        </div>
+        {triggerProjectSetup && (
+          <ProjectSetup
+            onProjectCreated={handleProjectCreated}
+            triggerOpen={triggerProjectSetup}
+            onClose={() => setTriggerProjectSetup(false)}
+          />
+        )}
 
         <GitLabSettings
           isOpen={showGitLabSettings}
