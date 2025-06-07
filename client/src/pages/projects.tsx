@@ -153,7 +153,7 @@ export default function ProjectsPage() {
     return 'text-red-400'
   }
 
-  if (loading || loadingProjects) {
+  if (loading || loadingProjects || (!user && !loading)) {
     return (
       <div className="min-h-screen bg-dark-bg text-white flex items-center justify-center">
         <motion.div
