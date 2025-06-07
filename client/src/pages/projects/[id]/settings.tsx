@@ -170,7 +170,7 @@ export default function ProjectSettingsPage() {
       <div className="min-h-screen bg-dark-bg text-white flex items-center justify-center">
         <div className="text-center">
           <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold mb-2">Project Not Found</h1>
+          {/* <h1 className="text-2xl font-bold mb-2">Project Not Found</h1> */}
           <p className="text-gray-400 mb-6">The project you're looking for doesn't exist or you don't have access to it.</p>
           <button
             onClick={() => router.push('/projects')}

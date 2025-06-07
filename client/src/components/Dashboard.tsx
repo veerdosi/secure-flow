@@ -319,13 +319,12 @@ const Dashboard = ({ projectId: propProjectId, projectData }: DashboardProps) =>
 
   if (!project) {
     return (
-      <div className="min-h-screen bg-dark-bg text-white p-6">
-        <div className="max-w-md mx-auto mt-20 bg-red-500/10 border border-red-500/50 rounded-xl p-6">
-          <div className="flex items-center">
-            <AlertTriangle className="h-6 w-6 text-red-400 mr-3" />
-            <p className="text-red-400">Project not found</p>
-          </div>
-        </div>
+      <div className="min-h-screen bg-dark-bg text-white flex items-center justify-center">
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+          className="w-12 h-12 border-4 border-cyber-blue border-t-transparent rounded-full"
+        />
       </div>
     );
   }

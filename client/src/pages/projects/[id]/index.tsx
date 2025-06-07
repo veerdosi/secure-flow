@@ -169,9 +169,9 @@ export default function ProjectDetailPage() {
   if (error && error.includes('not found')) {
     return (
       <>
-        <Head>
+        {/* <Head>
           <title>Project Not Found - SecureFlow AI</title>
-        </Head>
+        </Head> */}
         <div className="min-h-screen bg-dark-bg text-white">
           <div className="border-b border-dark-border bg-dark-card/50 backdrop-blur-sm">
             <div className="max-w-7xl mx-auto px-6 py-4">
@@ -196,7 +196,7 @@ export default function ProjectDetailPage() {
               className="text-center"
             >
               <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-6" />
-              <h2 className="text-3xl font-bold mb-4">Project Not Found</h2>
+              {/* <h2 className="text-3xl font-bold mb-4">Project Not Found</h2> */}
               <p className="text-gray-400 mb-8">
                 The project you're looking for doesn't exist or you don't have access to it.
               </p>
