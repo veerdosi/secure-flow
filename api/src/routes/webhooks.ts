@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { Project, Analysis } from '../models';
 import gitlabService from '../services/gitlab';
+import notificationService from '../services/notificationService';
 import logger from '../utils/logger';
 
 const router = Router();
@@ -140,6 +141,14 @@ async function processWebhookAnalysis(project: any, eventType: string, payload: 
 
     logger.info(`Webhook analysis created: ${analysis._id} for project ${project._id}, commit ${commitHash}`);
 
+    // Create notification for webhook event
+    await notificationService.createWebhookReceivedNotification(
+      project.createdBy,
+      project._id.toString(),
+      project.name,
+      eventType
+    );
+
     // Start background analysis processing
     processAnalysisInBackground(analysis._id.toString(), project._id.toString(), commitHash)
       .catch(error => {
@@ -180,6 +189,20 @@ async function processAnalysisInBackground(analysisId: string, projectId: string
       progress: 10,
       startedAt: new Date(),
     });
+
+    // Get project details for notifications
+    const project = await Project.findById(projectId);
+    if (!project) {
+      throw new Error('Project not found');
+    }
+
+    // Create notification for analysis start
+    await notificationService.createAnalysisStartedNotification(
+      userId,
+      projectId,
+      analysisId,
+      project.name
+    );
 
     // Get project files
     const files = await gitlabService.getProjectFiles(projectId, userId, commitHash);
@@ -291,11 +314,37 @@ async function processAnalysisInBackground(analysisId: string, projectId: string
 
     logger.info(`Webhook analysis ${analysisId} completed successfully. Score: ${avgScore}, Vulnerabilities: ${allVulnerabilities.length}`);
 
+    // Create notification for analysis completion
+    await notificationService.createAnalysisCompletedNotification(
+      userId,
+      projectId,
+      analysisId,
+      project.name,
+      avgScore,
+      threatLevel,
+      allVulnerabilities.length
+    );
+
     // Send notifications if configured
     await sendNotifications(projectId, analysis, avgScore, allVulnerabilities.length);
 
   } catch (error) {
     logger.error(`Webhook analysis ${analysisId} failed:`, error);
+
+    // Get project details for notification
+    const project = await Project.findById(projectId);
+    const projectName = project?.name || 'Unknown Project';
+
+    // Create notification for analysis failure
+    if (project) {
+      await notificationService.createAnalysisFailedNotification(
+        analysis.userId,
+        projectId,
+        analysisId,
+        projectName,
+        error instanceof Error ? error.message : 'Unknown error occurred'
+      );
+    }
 
     await Analysis.findByIdAndUpdate(analysisId, {
       status: 'FAILED',

@@ -13,6 +13,7 @@ import approvalRoutes from './routes/approval';
 import projectRoutes from './routes/projects';
 import webhookRoutes from './routes/webhooks';
 import systemRoutes from './routes/system';
+import notificationRoutes from './routes/notifications';
 import AnalysisScheduler from './services/analysisScheduler';
 import logger from './utils/logger';
 
@@ -121,6 +122,7 @@ app.use('/api/system', systemRoutes); // No auth required for system health chec
 app.use('/api/analysis', authMiddleware, analysisRoutes);
 app.use('/api/approval', authMiddleware, approvalRoutes);
 app.use('/api/projects', authMiddleware, projectRoutes);
+app.use('/api/notifications', authMiddleware, notificationRoutes);
 
 // Error handling
 app.use(errorHandler);

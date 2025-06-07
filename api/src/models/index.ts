@@ -269,10 +269,54 @@ const AnalysisSchema = new Schema<IAnalysis>({
   timestamps: true,
 });
 
+// Notification Schema
+export interface INotification extends Document {
+  _id: string;
+  userId: string;
+  projectId?: string;
+  analysisId?: string;
+  type: 'ANALYSIS_STARTED' | 'ANALYSIS_COMPLETED' | 'ANALYSIS_FAILED' | 'PROJECT_CREATED' | 'WEBHOOK_RECEIVED';
+  title: string;
+  message: string;
+  data?: any;
+  read: boolean;
+  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+  createdAt: Date;
+  readAt?: Date;
+}
+
+const NotificationSchema = new Schema<INotification>({
+  userId: { type: String, required: true, ref: 'User' },
+  projectId: { type: String, ref: 'Project' },
+  analysisId: { type: String, ref: 'Analysis' },
+  type: {
+    type: String,
+    enum: ['ANALYSIS_STARTED', 'ANALYSIS_COMPLETED', 'ANALYSIS_FAILED', 'PROJECT_CREATED', 'WEBHOOK_RECEIVED'],
+    required: true
+  },
+  title: { type: String, required: true },
+  message: { type: String, required: true },
+  data: { type: Schema.Types.Mixed },
+  read: { type: Boolean, default: false },
+  priority: {
+    type: String,
+    enum: ['LOW', 'MEDIUM', 'HIGH', 'URGENT'],
+    default: 'MEDIUM'
+  },
+  readAt: { type: Date }
+}, {
+  timestamps: true,
+});
+
+// Index for efficient querying
+NotificationSchema.index({ userId: 1, createdAt: -1 });
+NotificationSchema.index({ userId: 1, read: 1, createdAt: -1 });
+
 // Export models
 export const User = model<IUser>('User', UserSchema);
 export const Project = model<IProject>('Project', ProjectSchema);
 export const Analysis = model<IAnalysis>('Analysis', AnalysisSchema);
+export const Notification = model<INotification>('Notification', NotificationSchema);
 
 // Database connection with serverless optimization
 let cached: { conn: typeof mongoose | null; promise: Promise<typeof mongoose> | null } = {
