@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import mongoose from 'mongoose';
+import { connectDB } from '../models';
 import logger from '../utils/logger';
 
 const router = Router();
@@ -7,6 +8,9 @@ const router = Router();
 // Health check endpoint
 router.get('/health', async (req: Request, res: Response) => {
   try {
+    // Ensure database connection
+    await connectDB();
+    
     const health = {
       status: 'healthy',
       timestamp: new Date().toISOString(),
@@ -40,6 +44,9 @@ router.get('/health', async (req: Request, res: Response) => {
 // Validate system credentials and configuration
 router.get('/validate', async (req: Request, res: Response) => {
   try {
+    // Ensure database connection
+    await connectDB();
+    
     const validation = {
       status: 'healthy',
       details: {

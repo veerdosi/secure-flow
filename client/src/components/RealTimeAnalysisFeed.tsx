@@ -21,59 +21,162 @@ interface FeedItem {
 
 const RealTimeAnalysisFeed: React.FC<RealTimeAnalysisFeedProps> = ({ analysis }) => {
   const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
-  const [isScanning, setIsScanning] = useState(false);
+  const [feedIdCounter, setFeedIdCounter] = useState(0);
+
+  // Generate unique IDs using timestamp + counter approach
+  const generateUniqueId = () => {
+    const id = `feed_${Date.now()}_${feedIdCounter}`;
+    setFeedIdCounter(prev => prev + 1);
+    return id;
+  };
 
   useEffect(() => {
-    // Simulate real-time feed updates
-    const simulateFeed = () => {
-      const items: FeedItem[] = [
-        {
-          id: '1',
-          type: 'scan',
-          message: 'Scanning authentication.py...',
-          timestamp: new Date().toISOString(),
-        },
-        {
-          id: '2',
-          type: 'vulnerability',
-          message: 'CRITICAL: SQL injection detected at line 47',
-          timestamp: new Date(Date.now() + 1000).toISOString(),
-          severity: 'CRITICAL',
-          file: 'authentication.py',
-          line: 47,
-        },
-        {
-          id: '3',
-          type: 'analysis',
-          message: 'Analyzing attack vectors...',
-          timestamp: new Date(Date.now() + 2000).toISOString(),
-        },
-        {
-          id: '4',
-          type: 'analysis',
-          message: 'Mapping threat model...',
-          timestamp: new Date(Date.now() + 3000).toISOString(),
-        },
-        {
-          id: '5',
-          type: 'remediation',
-          message: 'Generating remediation...',
-          timestamp: new Date(Date.now() + 4000).toISOString(),
-        },
-      ];
+    if (!analysis) return;
 
-      items.forEach((item, index) => {
-        setTimeout(() => {
-          setFeedItems(prev => [item, ...prev].slice(0, 10));
-        }, index * 1500);
-      });
+    // Clear any existing feed items when analysis changes
+    setFeedItems([]);
+    setFeedIdCounter(0);
+
+    // Generate feed items based on actual analysis state
+    const generateFeedBasedOnAnalysis = () => {
+      const items: FeedItem[] = [];
+      const baseTime = Date.now();
+
+      // Add items based on analysis status and progress
+      if (analysis.status === 'PENDING') {
+        items.push({
+          id: generateUniqueId(),
+          type: 'scan',
+          message: 'Analysis queued - preparing to scan codebase...',
+          timestamp: new Date(baseTime).toISOString(),
+        });
+      } else if (analysis.status === 'IN_PROGRESS') {
+        // Add stage-specific messages
+        switch (analysis.stage) {
+          case 'INITIALIZING':
+            items.push({
+              id: generateUniqueId(),
+              type: 'scan',
+              message: 'Initializing security analysis engine...',
+              timestamp: new Date(baseTime).toISOString(),
+            });
+            break;
+          case 'FETCHING_CODE':
+            items.push({
+              id: generateUniqueId(),
+              type: 'scan',
+              message: 'Fetching project files from repository...',
+              timestamp: new Date(baseTime).toISOString(),
+            });
+            break;
+          case 'STATIC_ANALYSIS':
+            items.push({
+              id: generateUniqueId(),
+              type: 'analysis',
+              message: 'Performing static code analysis...',
+              timestamp: new Date(baseTime + 500).toISOString(),
+            });
+            if (analysis.progress && analysis.progress > 30) {
+              items.push({
+                id: generateUniqueId(),
+                type: 'scan',
+                message: `Scanning files... ${analysis.progress}% complete`,
+                timestamp: new Date(baseTime + 1000).toISOString(),
+              });
+            }
+            break;
+          case 'AI_ANALYSIS':
+            items.push({
+              id: generateUniqueId(),
+              type: 'analysis',
+              message: 'AI analyzing code patterns and security vulnerabilities...',
+              timestamp: new Date(baseTime + 1500).toISOString(),
+            });
+            break;
+          case 'THREAT_MODELING':
+            items.push({
+              id: generateUniqueId(),
+              type: 'analysis',
+              message: 'Generating threat model and attack vectors...',
+              timestamp: new Date(baseTime + 2000).toISOString(),
+            });
+            break;
+        }
+      } else if (analysis.status === 'COMPLETED') {
+        items.push({
+          id: generateUniqueId(),
+          type: 'remediation',
+          message: `Analysis complete! Found ${analysis.vulnerabilities.length} vulnerabilities`,
+          timestamp: new Date(baseTime).toISOString(),
+        });
+        
+        // Add vulnerability highlights
+        const criticalVulns = analysis.vulnerabilities.filter(v => v.severity === 'CRITICAL');
+        if (criticalVulns.length > 0) {
+          items.push({
+            id: generateUniqueId(),
+            type: 'vulnerability',
+            message: `${criticalVulns.length} critical vulnerabilities detected`,
+            timestamp: new Date(baseTime + 500).toISOString(),
+            severity: 'CRITICAL',
+          });
+        }
+      } else if (analysis.status === 'FAILED') {
+        items.push({
+          id: generateUniqueId(),
+          type: 'vulnerability',
+          message: 'Analysis failed - please check logs for details',
+          timestamp: new Date(baseTime).toISOString(),
+          severity: 'HIGH',
+        });
+      }
+
+      return items;
     };
 
-    simulateFeed();
-    const interval = setInterval(simulateFeed, 15000);
+    // Add initial feed items
+    const initialItems = generateFeedBasedOnAnalysis();
+    initialItems.forEach((item, index) => {
+      setTimeout(() => {
+        setFeedItems(prev => {
+          // Ensure no duplicate keys by filtering out any existing items with the same ID
+          const filteredPrev = prev.filter(existingItem => existingItem.id !== item.id);
+          return [item, ...filteredPrev].slice(0, 10);
+        });
+      }, index * 800); // Stagger the appearance
+    });
 
-    return () => clearInterval(interval);
-  }, []);
+    // For in-progress analyses, simulate ongoing updates
+    let intervalId: NodeJS.Timeout | null = null;
+    
+    if (analysis.status === 'IN_PROGRESS') {
+      intervalId = setInterval(() => {
+        const progressItems = [
+          {
+            id: generateUniqueId(),
+            type: 'scan' as const,
+            message: `Analyzing... ${analysis.progress || 0}% complete`,
+            timestamp: new Date().toISOString(),
+          },
+          {
+            id: generateUniqueId(),
+            type: 'analysis' as const,
+            message: 'Processing security patterns...',
+            timestamp: new Date().toISOString(),
+          },
+        ];
+
+        const randomItem = progressItems[Math.floor(Math.random() * progressItems.length)];
+        setFeedItems(prev => [randomItem, ...prev].slice(0, 10));
+      }, 12000); // Update every 12 seconds
+    }
+
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [analysis?.id, analysis?.status, analysis?.stage, analysis?.progress]); // Only re-run when analysis actually changes
 
   const getIcon = (type: string) => {
     switch (type) {

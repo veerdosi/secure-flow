@@ -4,7 +4,6 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
-import path from 'path';
 import { connectDB } from './models';
 import { errorHandler } from './middleware/errorHandler';
 import { authMiddleware } from './middleware/auth';
@@ -17,7 +16,8 @@ import systemRoutes from './routes/system';
 import AnalysisScheduler from './services/analysisScheduler';
 import logger from './utils/logger';
 
-dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+// Load environment variables - works both locally and in serverless
+dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -38,24 +38,70 @@ const limiter = rateLimit({
 
 // Middleware
 app.use(helmet());
-app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:3000',
-  credentials: true
-}));
+
+// Dynamic CORS configuration for different environments
+const corsOptions = {
+  origin: (origin: string | undefined, callback: Function) => {
+    // Get the current deployment URL
+    const deploymentUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null;
+    
+    const allowedOrigins = [
+      process.env.CLIENT_URL,
+      deploymentUrl,
+      'http://localhost:3000',
+      'https://localhost:3000'
+    ].filter(Boolean);
+
+    // Allow requests with no origin (same-origin, mobile apps, etc)
+    if (!origin) return callback(null, true);
+
+    // Check exact matches first
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    // Allow any Vercel deployment (for preview deployments)
+    if (origin.includes('.vercel.app')) {
+      return callback(null, true);
+    }
+
+    // In production, be more restrictive
+    if (process.env.NODE_ENV === 'production') {
+      logger.warn(`CORS blocked origin: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    } else {
+      callback(null, true); // Allow in development
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+};
+
+app.use(cors(corsOptions));
 app.use(limiter);
 app.use(morgan('combined'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Database connection middleware for serverless
-app.use(async (req, res, next) => {
-  try {
-    await connectDB();
-    next();
-  } catch (error) {
-    logger.error('Database connection failed:', error);
-    res.status(500).json({ error: 'Database connection failed' });
+// Initialize database connection once for serverless functions
+let dbInitialized = false;
+const initializeDB = async () => {
+  if (!dbInitialized) {
+    try {
+      await connectDB();
+      dbInitialized = true;
+      logger.info('Database connection initialized');
+    } catch (error) {
+      logger.error('Database initialization failed:', error);
+      throw error;
+    }
   }
+};
+
+// Initialize database connection on startup
+initializeDB().catch(error => {
+  logger.error('Failed to initialize database on startup:', error);
 });
 
 // Health check
@@ -88,7 +134,7 @@ app.listen(PORT, () => {
   logger.info(`🚀 SecureFlow API server running on port ${PORT}`);
   logger.info(`📊 Health check available at http://localhost:${PORT}/health`);
   logger.info(`🗄️  Using MongoDB database`);
-  
+
   // Start analysis scheduler
   const scheduler = AnalysisScheduler.getInstance();
   scheduler.start();

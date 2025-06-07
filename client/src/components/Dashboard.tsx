@@ -140,8 +140,17 @@ const Dashboard = ({ projectId: propProjectId, projectData }: DashboardProps) =>
 
     try {
       setLoading(true);
-      await analysisAPI.start({ projectId: projectId as string });
-      router.push(`/analysis/${projectId}`);
+      const result = await analysisAPI.start({ projectId: projectId as string });
+      
+      // Redirect to the analysis page using the returned analysisId
+      if (result && result.analysisId) {
+        router.push(`/analysis/${result.analysisId}`);
+      } else {
+        // Fallback: refresh the current dashboard to show updated analysis
+        setError(null);
+        setLoading(false);
+        fetchLatestAnalysis();
+      }
     } catch (error: any) {
       console.error('Failed to start analysis:', error);
       setError('Failed to start analysis');

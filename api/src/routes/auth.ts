@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { body, validationResult } from 'express-validator';
 import { OAuth2Client } from 'google-auth-library';
-import { User } from '../models';
+import { User, connectDB } from '../models';
 import logger from '../utils/logger';
 
 const router = Router();
@@ -24,6 +24,9 @@ router.post('/register',
   ],
   async (req: Request, res: Response) => {
     try {
+      // Ensure database connection
+      await connectDB();
+      
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });
@@ -94,6 +97,9 @@ router.post('/login',
   ],
   async (req: Request, res: Response) => {
     try {
+      // Ensure database connection
+      await connectDB();
+      
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });
@@ -150,6 +156,9 @@ router.post('/login',
 // Get current user
 router.get('/me', async (req: Request, res: Response) => {
   try {
+    // Ensure database connection
+    await connectDB();
+    
     const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -331,6 +340,9 @@ router.post('/google',
   ],
   async (req: Request, res: Response) => {
     try {
+      // Ensure database connection
+      await connectDB();
+      
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });
