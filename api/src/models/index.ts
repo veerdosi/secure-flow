@@ -117,6 +117,18 @@ const ProjectSchema = new Schema<IProject>({
   timestamps: true,
 });
 
+// Analysis History Item for tracking changes
+export interface IAnalysisHistoryItem {
+  timestamp: Date;
+  securityScore: number;
+  threatLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  vulnerabilityCount: number;
+  newVulnerabilities: number;
+  resolvedVulnerabilities: number;
+  commitHash: string;
+  triggeredBy: 'manual' | 'webhook' | 'scheduled';
+}
+
 // Analysis Schema
 export interface IAnalysis extends Document {
   _id: string;
@@ -141,6 +153,10 @@ export interface IAnalysis extends Document {
   commitMessage?: string;
   author?: any;
   error?: string;
+  // Analysis History - stores trends over time
+  history: IAnalysisHistoryItem[];
+  // Previous analysis ID for comparison
+  previousAnalysisId?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -179,6 +195,18 @@ const AnalysisSchema = new Schema<IAnalysis>({
   commitMessage: { type: String },
   author: { type: Schema.Types.Mixed },
   error: { type: String },
+  // Analysis history for trends
+  history: [{
+    timestamp: { type: Date, default: Date.now },
+    securityScore: { type: Number },
+    threatLevel: { type: String, enum: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] },
+    vulnerabilityCount: { type: Number },
+    newVulnerabilities: { type: Number, default: 0 },
+    resolvedVulnerabilities: { type: Number, default: 0 },
+    commitHash: { type: String },
+    triggeredBy: { type: String, enum: ['manual', 'webhook', 'scheduled'] }
+  }],
+  previousAnalysisId: { type: String, ref: 'Analysis' },
 }, {
   timestamps: true,
 });

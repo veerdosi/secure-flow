@@ -13,6 +13,7 @@ import analysisRoutes from './routes/analysis';
 import projectRoutes from './routes/projects';
 import webhookRoutes from './routes/webhooks';
 import systemRoutes from './routes/system';
+import AnalysisScheduler from './services/analysisScheduler';
 import logger from './utils/logger';
 
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
@@ -85,6 +86,26 @@ app.listen(PORT, () => {
   logger.info(`🚀 SecureFlow API server running on port ${PORT}`);
   logger.info(`📊 Health check available at http://localhost:${PORT}/health`);
   logger.info(`🗄️  Using MongoDB database`);
+  
+  // Start analysis scheduler
+  const scheduler = AnalysisScheduler.getInstance();
+  scheduler.start();
+  logger.info(`⏰ Analysis scheduler started`);
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  logger.info('SIGTERM received, shutting down gracefully');
+  const scheduler = AnalysisScheduler.getInstance();
+  scheduler.stop();
+  process.exit(0);
+});
+
+process.on('SIGINT', () => {
+  logger.info('SIGINT received, shutting down gracefully');
+  const scheduler = AnalysisScheduler.getInstance();
+  scheduler.stop();
+  process.exit(0);
 });
 
 export default app;
