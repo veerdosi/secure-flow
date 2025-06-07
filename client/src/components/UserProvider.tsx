@@ -191,7 +191,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -10, scale: 0.95 }}
                 transition={{ duration: 0.15 }}
-                className="absolute right-0 top-full mt-2 w-72 bg-dark-card border border-dark-border rounded-xl shadow-2xl z-[100] overflow-hidden"
+                className="absolute right-0 top-full mt-2 w-72 bg-dark-card border border-dark-border rounded-xl shadow-2xl z-[60] overflow-hidden"
               >
                 {/* User Info */}
                 <div className="p-4 border-b border-dark-border">

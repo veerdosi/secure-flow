@@ -108,8 +108,9 @@ export default function ProjectDetailPage() {
       if (project && project._id !== selectedProject?._id) {
         setSelectedProject(project)
       } else if (!project) {
-        // Project not found, silently redirect to projects list
-        router.push('/projects')
+        // Project not found, redirect to projects list
+        setError('Project not found')
+        setTimeout(() => router.push('/projects'), 2000)
       }
     }
   }, [projectId, projects, selectedProject, setSelectedProject, router])
