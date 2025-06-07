@@ -145,7 +145,7 @@ router.post('/',
 
       // Try to create GitLab webhook (optional - don't fail if this fails)
       try {
-        const webhookUrl = `${process.env.CLIENT_URL || 'http://localhost:3000'}/api/webhooks/gitlab`;
+        const webhookUrl = `${process.env.WEBHOOK_BASE_URL || process.env.API_BASE_URL || 'http://localhost:3001'}/api/webhooks/gitlab`;
         const webhookId = await gitlabService.createWebhook(
           gitlabProjectId,
           userId,
@@ -374,7 +374,7 @@ router.post('/:id/webhook/regenerate',
       // Update GitLab webhook if it exists
       if (project.webhookId) {
         try {
-          const webhookUrl = `${process.env.CLIENT_URL || 'http://localhost:3000'}/api/webhooks/gitlab`;
+          const webhookUrl = `${process.env.WEBHOOK_BASE_URL || process.env.API_BASE_URL || 'http://localhost:3001'}/api/webhooks/gitlab`;
           await gitlabService.updateWebhook(
             project.gitlabProjectId,
             userId,
