@@ -10,6 +10,7 @@ import { errorHandler } from './middleware/errorHandler';
 import { authMiddleware } from './middleware/auth';
 import authRoutes from './routes/auth';
 import analysisRoutes from './routes/analysis';
+import approvalRoutes from './routes/approval';
 import projectRoutes from './routes/projects';
 import webhookRoutes from './routes/webhooks';
 import systemRoutes from './routes/system';
@@ -72,6 +73,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/webhooks', webhookRoutes); // No auth required for webhooks
 app.use('/api/system', systemRoutes); // No auth required for system health checks
 app.use('/api/analysis', authMiddleware, analysisRoutes);
+app.use('/api/approval', authMiddleware, approvalRoutes);
 app.use('/api/projects', authMiddleware, projectRoutes);
 
 // Error handling

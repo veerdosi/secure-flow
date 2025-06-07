@@ -3,6 +3,7 @@ import { body, param, validationResult } from 'express-validator';
 import { Analysis } from '../models';
 import gitlabService from '../services/gitlab';
 import aiAnalysisService from '../services/aiAnalysis';
+import remediationService from '../services/remediationService';
 import AnalysisScheduler from '../services/analysisScheduler';
 import logger from '../utils/logger';
 import jwt from 'jsonwebtoken';
@@ -302,6 +303,9 @@ async function processAnalysis(analysisId: string, projectId: string, commitHash
     // Generate remediation steps
     const remediationSteps = await aiAnalysisService.generateRemediationSteps(allVulnerabilities);
 
+    // Generate automated remediation actions
+    const remediationActions = await remediationService.generateRemediationActions(allVulnerabilities, files);
+
     // Calculate vulnerability changes
     let newVulnerabilities = 0;
     let resolvedVulnerabilities = 0;
@@ -326,17 +330,35 @@ async function processAnalysis(analysisId: string, projectId: string, commitHash
       triggeredBy: analysis.triggeredBy as any
     };
 
+    // Determine if human approval is needed
+    const needsApproval = remediationActions.length > 0 && (
+      remediationActions.some(a => a.severity === 'CRITICAL' || a.severity === 'HIGH') ||
+      remediationActions.some(a => a.estimatedRisk === 'HIGH') ||
+      remediationActions.some(a => a.confidence < 70)
+    );
+
+    const finalStatus = needsApproval ? 'AWAITING_APPROVAL' : 'COMPLETED';
+
     // Final update
     await Analysis.findByIdAndUpdate(analysisId, {
-      status: 'COMPLETED',
-      stage: 'COMPLETED',
+      status: finalStatus,
+      stage: needsApproval ? 'AWAITING_APPROVAL' : 'COMPLETED',
       progress: 100,
       securityScore: avgScore,
       threatLevel,
       vulnerabilities: allVulnerabilities,
       threatModel,
       remediationSteps,
-      aiAnalysis: `Analysis completed. Found ${allVulnerabilities.length} vulnerabilities across ${fileCount} files.`,
+      proposedRemediations: remediationActions,
+      humanApproval: {
+        status: 'PENDING',
+        approvedActions: [],
+        rejectedActions: [],
+        comments: '',
+        requestedChanges: []
+      },
+      autoRemediationEnabled: false, // Default to requiring approval
+      aiAnalysis: `Analysis completed. Found ${allVulnerabilities.length} vulnerabilities across ${fileCount} files. ${needsApproval ? 'Human approval required for remediation.' : ''}`,
       complianceScore: {
         owasp: Math.max(0, (avgScore - 20) / 80),
         pci: Math.max(0, (avgScore - 30) / 70),
@@ -345,10 +367,14 @@ async function processAnalysis(analysisId: string, projectId: string, commitHash
         iso27001: Math.max(0, (avgScore - 20) / 80),
       },
       history: [historyEntry],
-      completedAt: new Date(),
+      completedAt: needsApproval ? undefined : new Date(),
     });
 
-    logger.info(`Analysis ${analysisId} completed successfully`);
+    if (needsApproval) {
+      logger.info(`Analysis ${analysisId} completed - awaiting human approval for ${remediationActions.length} remediation actions`);
+    } else {
+      logger.info(`Analysis ${analysisId} completed successfully with no remediations needed`);
+    }
   } catch (error) {
     logger.error(`Analysis ${analysisId} failed:`, error);
 
