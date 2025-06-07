@@ -44,6 +44,12 @@ GitLab Webhook → Cloud Function → Vertex AI → Firestore → React Dashboar
 - **Gemini API** - AI-powered code analysis
 - **GitLab API** - Repository integration
 
+### Infrastructure
+
+- **Google Cloud Functions** - Serverless webhook processing
+- **Firebase Hosting** - Static site deployment
+- **Firebase Authentication** - User management
+
 ## 🚀 Quick Start
 
 ### Prerequisites
