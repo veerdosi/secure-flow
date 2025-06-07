@@ -334,6 +334,42 @@ export const systemAPI = {
   },
 };
 
+// Notification API
+export const notificationAPI = {
+  getAll: async (params: {
+    page?: number;
+    limit?: number;
+    unread?: boolean;
+    projectId?: string;
+  } = {}) => {
+    const response = await api.get('/api/notifications', { params });
+    return response.data;
+  },
+
+  markAsRead: async (data: {
+    notificationIds?: string[];
+    markAll?: boolean;
+  }) => {
+    const response = await api.patch('/api/notifications/read', data);
+    return response.data;
+  },
+
+  getStats: async () => {
+    const response = await api.get('/api/notifications/stats');
+    return response.data;
+  },
+};
+
+// Analysis History API
+export const analysisHistoryAPI = {
+  getProjectHistory: async (projectId: string, days: number = 30) => {
+    const response = await api.get(`/api/analysis/project/${projectId}/history`, {
+      params: { days }
+    });
+    return response.data;
+  },
+};
+
 // Webhook API
 export const webhookAPI = {
   testWebhook: async (projectId: string, webhookData: any) => {

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { TrendingUp, TrendingDown, Activity, AlertTriangle, Calendar } from 'lucide-react';
+import { analysisHistoryAPI, handleApiError } from '../utils/api';
 
 interface AnalysisHistoryData {
   analyses: number;
@@ -29,13 +30,13 @@ export default function AnalysisHistory({ projectId, timeRange = 30 }: { project
   const loadHistory = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/analysis/project/${projectId}/history?days=${selectedRange}`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
-      if (!response.ok) throw new Error('Failed to load analysis history');
-      setData(await response.json());
+      setError('');
+      const data = await analysisHistoryAPI.getProjectHistory(projectId, selectedRange);
+      setData(data);
     } catch (error: any) {
-      setError(error.message);
+      const errorMessage = handleApiError(error);
+      setError(errorMessage);
+      console.error('Failed to load analysis history:', errorMessage);
     } finally {
       setLoading(false);
     }

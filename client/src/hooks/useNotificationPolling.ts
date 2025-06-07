@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAnalysisData } from './useAnalysisData'
+import { notificationAPI, handleApiError } from '../utils/api'
 
 interface Notification {
   _id: string
@@ -14,15 +15,18 @@ export const useNotificationPolling = () => {
   const { invalidate } = useAnalysisData()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
+  const [error, setError] = useState<string | null>(null)
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
   const lastPolledRef = useRef<Date>(new Date())
 
   const fetchNotifications = useCallback(async () => {
     try {
-      const response = await fetch('/api/notifications?unread=true&limit=50')
-      if (!response.ok) throw new Error('Failed to fetch notifications')
+      setError(null)
+      const data = await notificationAPI.getAll({
+        unread: true,
+        limit: 50
+      })
       
-      const data = await response.json()
       const newNotifications = data.notifications.filter(
         (n: Notification) => new Date(n.createdAt) > lastPolledRef.current
       )
@@ -37,10 +41,29 @@ export const useNotificationPolling = () => {
       setNotifications(data.notifications)
       setUnreadCount(data.unreadCount)
       lastPolledRef.current = new Date()
-    } catch (error) {
-      console.error('Failed to fetch notifications:', error)
+    } catch (error: any) {
+      const errorMessage = handleApiError(error)
+      console.error('Failed to fetch notifications:', errorMessage)
+      setError(errorMessage)
+      
+      // If it's an auth error, stop polling to prevent spam
+      if (error.response?.status === 401) {
+        stopPolling()
+      }
     }
   }, [invalidate])
+
+  const markAsRead = useCallback(async (notificationIds?: string[], markAll: boolean = false) => {
+    try {
+      await notificationAPI.markAsRead({ notificationIds, markAll })
+      // Refresh notifications after marking as read
+      await fetchNotifications()
+    } catch (error: any) {
+      const errorMessage = handleApiError(error)
+      console.error('Failed to mark notifications as read:', errorMessage)
+      setError(errorMessage)
+    }
+  }, [fetchNotifications])
 
   const startPolling = useCallback(() => {
     if (intervalRef.current) return
@@ -63,7 +86,9 @@ export const useNotificationPolling = () => {
   return {
     notifications,
     unreadCount,
+    error,
     fetchNotifications,
+    markAsRead,
     startPolling,
     stopPolling
   }
