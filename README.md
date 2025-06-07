@@ -40,8 +40,8 @@ GitLab Webhook → Cloud Function → Vertex AI → Firestore → React Dashboar
 ### Backend
 
 - **Node.js/Express** - REST API server
-- **Firebase Firestore** - Real-time database
-- **Google Vertex AI** - AI-powered code analysis
+- **MongoDB** - Real-time database
+- **Gemini API** - AI-powered code analysis
 - **GitLab API** - Repository integration
 
 ### Infrastructure
@@ -95,6 +95,7 @@ SMTP_PASS=your-app-password
 ### 3. Database Setup
 
 **Option A: Local MongoDB**
+
 ```bash
 # Install MongoDB locally
 brew install mongodb/brew/mongodb-community  # macOS
@@ -105,6 +106,7 @@ brew services start mongodb/brew/mongodb-community
 ```
 
 **Option B: MongoDB Atlas (Cloud)**
+
 1. Create free account at [MongoDB Atlas](https://www.mongodb.com/atlas)
 2. Create a cluster and get connection string
 3. Update MONGODB_URI in .env file
