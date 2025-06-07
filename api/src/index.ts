@@ -4,7 +4,6 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
-import path from 'path';
 import { connectDB } from './models';
 import { errorHandler } from './middleware/errorHandler';
 import { authMiddleware } from './middleware/auth';
@@ -15,7 +14,8 @@ import webhookRoutes from './routes/webhooks';
 import systemRoutes from './routes/system';
 import logger from './utils/logger';
 
-dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+// Load environment variables - works both locally and in serverless
+dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -36,10 +36,37 @@ const limiter = rateLimit({
 
 // Middleware
 app.use(helmet());
-app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:3000',
-  credentials: true
-}));
+
+// Dynamic CORS configuration for different environments
+const corsOptions = {
+  origin: (origin: string | undefined, callback: Function) => {
+    const allowedOrigins = [
+      process.env.CLIENT_URL,
+      process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null,
+      'http://localhost:3000',
+      'https://localhost:3000'
+    ].filter(Boolean);
+
+    // Allow requests with no origin (mobile apps, etc)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      // In production, be more restrictive
+      if (process.env.NODE_ENV === 'production') {
+        callback(new Error('Not allowed by CORS'));
+      } else {
+        callback(null, true); // Allow in development
+      }
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+};
+
+app.use(cors(corsOptions));
 app.use(limiter);
 app.use(morgan('combined'));
 app.use(express.json({ limit: '10mb' }));
