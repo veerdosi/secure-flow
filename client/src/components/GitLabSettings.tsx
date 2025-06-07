@@ -2,12 +2,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Settings, 
-  ExternalLink, 
-  Check, 
-  AlertCircle, 
-  Eye, 
+import {
+  Settings,
+  ExternalLink,
+  Check,
+  AlertCircle,
+  Eye,
   EyeOff,
   Loader2,
   GitBranch,
@@ -26,11 +26,11 @@ interface GitLabSettingsProps {
   };
 }
 
-const GitLabSettings: React.FC<GitLabSettingsProps> = ({ 
-  isOpen, 
-  onClose, 
+const GitLabSettings: React.FC<GitLabSettingsProps> = ({
+  isOpen,
+  onClose,
   onSuccess,
-  currentSettings 
+  currentSettings
 }) => {
   const [formData, setFormData] = useState({
     apiToken: '',
@@ -134,13 +134,14 @@ const GitLabSettings: React.FC<GitLabSettingsProps> = ({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.9 }}
-          className="bg-dark-card border border-dark-border rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
-        >
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 overflow-y-auto">
+        <div className="min-h-full flex items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            className="bg-dark-card border border-dark-border rounded-xl w-full max-w-2xl my-8 shadow-2xl"
+          >
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b border-dark-border">
             <div className="flex items-center space-x-3">
@@ -162,7 +163,7 @@ const GitLabSettings: React.FC<GitLabSettingsProps> = ({
 
           {/* Content */}
           <div className="p-6 space-y-6">
-            
+
             {/* Instructions */}
             <div className="bg-blue-500/10 border border-blue-500/50 rounded-lg p-4">
               <h3 className="flex items-center font-semibold mb-3">
@@ -183,7 +184,7 @@ const GitLabSettings: React.FC<GitLabSettingsProps> = ({
                   Copy and paste the token below
                 </li>
               </ol>
-              
+
               <motion.a
                 href="https://gitlab.com/-/profile/personal_access_tokens"
                 target="_blank"
@@ -330,7 +331,7 @@ const GitLabSettings: React.FC<GitLabSettingsProps> = ({
                 <div className="text-sm">
                   <p className="text-yellow-400 font-semibold mb-1">Security Notice</p>
                   <p className="text-gray-300">
-                    Your API token is encrypted and stored securely. It's only used to access your GitLab projects 
+                    Your API token is encrypted and stored securely. It's only used to access your GitLab projects
                     for security scanning purposes. You can revoke access at any time from your GitLab settings.
                   </p>
                 </div>
@@ -370,6 +371,7 @@ const GitLabSettings: React.FC<GitLabSettingsProps> = ({
             </motion.button>
           </div>
         </motion.div>
+        </div>
       </div>
     </AnimatePresence>
   );

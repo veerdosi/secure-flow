@@ -112,12 +112,22 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
 // User Profile Dropdown Component
 interface UserProfileProps {
   onGitLabConfigured?: () => void;
+  showGitLabSettings?: boolean;
+  setShowGitLabSettings?: (show: boolean) => void;
 }
 
-export const UserProfile: React.FC<UserProfileProps> = ({ onGitLabConfigured }) => {
+export const UserProfile: React.FC<UserProfileProps> = ({
+  onGitLabConfigured,
+  showGitLabSettings: externalShowGitLabSettings,
+  setShowGitLabSettings: externalSetShowGitLabSettings
+}) => {
   const { user, refreshUser } = useUser();
   const [isOpen, setIsOpen] = useState(false);
-  const [showGitLabSettings, setShowGitLabSettings] = useState(false);
+  const [internalShowGitLabSettings, setInternalShowGitLabSettings] = useState(false);
+
+  // Use external state if provided, otherwise use internal state
+  const showGitLabSettings = externalShowGitLabSettings !== undefined ? externalShowGitLabSettings : internalShowGitLabSettings;
+  const setShowGitLabSettings = externalSetShowGitLabSettings || setInternalShowGitLabSettings;
 
   if (!user) return null;
 
@@ -171,11 +181,11 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onGitLabConfigured }) 
           {isOpen && (
             <>
               {/* Backdrop */}
-              <div 
-                className="fixed inset-0 z-40" 
+              <div
+                className="fixed inset-0 z-40"
                 onClick={() => setIsOpen(false)}
               />
-              
+
               {/* Menu */}
               <motion.div
                 initial={{ opacity: 0, y: -10, scale: 0.95 }}
@@ -228,7 +238,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onGitLabConfigured }) 
                       </span>
                     </div>
                   </div>
-                  
+
                   {!user.gitlabSettings?.apiToken && (
                     <p className="text-xs text-gray-400 mt-2">
                       Configure GitLab to enable project scanning
@@ -283,7 +293,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onGitLabConfigured }) 
                   <div className="flex items-center justify-between text-xs text-gray-400">
                     <span>Last login:</span>
                     <span>
-                      {user.lastLogin 
+                      {user.lastLogin
                         ? new Date(user.lastLogin).toLocaleDateString()
                         : 'Never'
                       }

@@ -26,6 +26,7 @@ export default function DashboardPage() {
   const [systemHealth, setSystemHealth] = useState<any>(null)
   const [loadingProjects, setLoadingProjects] = useState(false)
   const [error, setError] = useState('')
+  const [showGitLabSettings, setShowGitLabSettings] = useState(false)
 
   useEffect(() => {
     if (!loading && !user) {
@@ -91,6 +92,11 @@ export default function DashboardPage() {
     router.push(`/dashboard?project=${newProject._id}`, undefined, { shallow: true })
   }
 
+  const handleGitLabConfigured = () => {
+    setTriggerProjectSetup(true)
+    setShowGitLabSettings(false)
+  }
+
   const handleProjectChange = (project: Project) => {
     setSelectedProject(project)
     router.push(`/dashboard?project=${project._id}`, undefined, { shallow: true })
@@ -128,7 +134,11 @@ export default function DashboardPage() {
                   <Shield className="w-8 h-8 text-cyber-blue" />
                   <h1 className="text-2xl font-bold">SecureFlow AI</h1>
                 </div>
-                <UserProfile onGitLabConfigured={() => setTriggerProjectSetup(true)} />
+                <UserProfile
+                  onGitLabConfigured={handleGitLabConfigured}
+                  showGitLabSettings={showGitLabSettings}
+                  setShowGitLabSettings={setShowGitLabSettings}
+                />
               </div>
             </div>
           </div>
@@ -237,14 +247,18 @@ if (selectedProject) {
                   <Plus className="w-4 h-4 mr-2" />
                   Add Project
                 </motion.button>
-                <UserProfile onGitLabConfigured={() => setTriggerProjectSetup(true)} />
+                <UserProfile
+                  onGitLabConfigured={handleGitLabConfigured}
+                  showGitLabSettings={showGitLabSettings}
+                  setShowGitLabSettings={setShowGitLabSettings}
+                />
               </div>
             </div>
           </div>
         </div>
 
         <Dashboard projectId={selectedProject._id} />
-        
+
         {/* Project Setup Modal */}
         {triggerProjectSetup && (
           <ProjectSetup
@@ -273,7 +287,11 @@ return (
               <Shield className="w-8 h-8 text-cyber-blue" />
               <h1 className="text-2xl font-bold">SecureFlow AI</h1>
             </div>
-            <UserProfile onGitLabConfigured={() => setTriggerProjectSetup(true)} />
+            <UserProfile
+              onGitLabConfigured={handleGitLabConfigured}
+              showGitLabSettings={showGitLabSettings}
+              setShowGitLabSettings={setShowGitLabSettings}
+            />
           </div>
         </div>
       </div>
@@ -284,13 +302,13 @@ return (
           animate={{ opacity: 1, y: 0 }}
           className="text-center"
         >
-          <div className="mb-8">
+          <div className="mb-8 relative z-10">
             <motion.div
-              animate={{ 
+              animate={{
                 scale: [1, 1.1, 1],
                 rotate: [0, 5, -5, 0]
               }}
-              transition={{ 
+              transition={{
                 duration: 3,
                 repeat: Infinity,
                 ease: "easeInOut"
@@ -300,7 +318,7 @@ return (
               <GitBranch className="w-16 h-16 text-cyber-blue mx-auto mb-6" />
             </motion.div>
           </div>
-          
+
           <h2 className="text-3xl font-bold mb-4">No Projects Configured</h2>
           <p className="text-gray-400 mb-8 text-lg">
             Connect your GitLab projects to start monitoring your code security in real-time.
@@ -320,7 +338,7 @@ return (
               <p className="text-gray-300 mb-6 leading-relaxed">
                 You need to configure your GitLab API token before adding projects. This allows SecureFlow AI to access your repositories and set up webhooks for real-time analysis.
               </p>
-              
+
               <div className="space-y-4 text-left mb-6">
                 <div className="flex items-start space-x-3">
                   <div className="w-6 h-6 bg-cyber-blue rounded-full flex items-center justify-center text-sm font-bold text-black mt-0.5">1</div>
@@ -346,11 +364,7 @@ return (
               </div>
 
               <motion.button
-                onClick={() => {
-                  // This will be handled by the UserProfile component
-                  const settingsBtn = document.querySelector('[data-gitlab-settings]') as HTMLElement
-                  settingsBtn?.click()
-                }}
+                onClick={() => setShowGitLabSettings(true)}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-semibold py-3 px-6 rounded-lg transition-all flex items-center mx-auto"
