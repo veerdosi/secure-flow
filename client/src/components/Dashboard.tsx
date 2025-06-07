@@ -623,46 +623,6 @@ const Dashboard = ({ projectId: propProjectId, projectData }: DashboardProps) =>
                 </div>
               </motion.div>
 
-              {/* Code Vulnerability Heatmap */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.6 }}
-                className="bg-dark-card border border-dark-border rounded-xl p-6"
-              >
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-white">Code Vulnerability Heatmap</h3>
-                  <FileText className="w-5 h-5 text-gray-400" />
-                </div>
-
-                <div className="mb-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-gray-400 text-sm">Project Files</span>
-                    <span className="text-gray-500 text-xs">Risk Levels</span>
-                  </div>
-                  <div className="flex items-center justify-end space-x-4 text-xs">
-                    <div className="flex items-center">
-                      <div className="w-3 h-3 bg-red-500 rounded mr-1"></div>
-                      <span className="text-gray-400">Critical</span>
-                    </div>
-                    <div className="flex items-center">
-                      <div className="w-3 h-3 bg-orange-500 rounded mr-1"></div>
-                      <span className="text-gray-400">High</span>
-                    </div>
-                    <div className="flex items-center">
-                      <div className="w-3 h-3 bg-yellow-500 rounded mr-1"></div>
-                      <span className="text-gray-400">Medium</span>
-                    </div>
-                    <div className="flex items-center">
-                      <div className="w-3 h-3 bg-green-500 rounded mr-1"></div>
-                      <span className="text-gray-400">Low</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="max-h-64 overflow-y-auto scrollbar-thin">
-                  <VulnerabilityHeatmap vulnerabilities={analysis.vulnerabilities} />
-                </div>
               </motion.div>
             </div>
 
