@@ -221,8 +221,10 @@ if (selectedProject) {
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
                 <Shield className="w-8 h-8 text-cyber-blue" />
-                <h1 className="text-2xl font-bold">SecureFlow AI</h1>
-                <span className="text-gray-400">[Project: {selectedProject.name}]</span>
+                <div>
+                  <h1 className="text-2xl font-bold">SecureFlow AI</h1>
+                  <p className="text-gray-400 text-sm">Project: {selectedProject.name}</p>
+                </div>
                 {projects.length > 1 && (
                   <select
                     value={selectedProject._id}
@@ -230,7 +232,7 @@ if (selectedProject) {
                       const project = projects.find(p => p._id === e.target.value)
                       if (project) handleProjectChange(project)
                     }}
-                    className="bg-dark-card border border-dark-border rounded-lg px-3 py-1 text-sm"
+                    className="bg-dark-card border border-dark-border rounded-lg px-3 py-2 text-sm text-white focus:border-cyber-blue focus:outline-none"
                   >
                     {projects.map(project => (
                       <option key={project._id} value={project._id}>
@@ -242,10 +244,19 @@ if (selectedProject) {
               </div>
               <div className="flex items-center space-x-4">
                 <motion.button
-                  onClick={() => setTriggerProjectSetup(true)}
+                  onClick={() => router.push('/projects')}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   className="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors flex items-center"
+                >
+                  <GitBranch className="w-4 h-4 mr-2" />
+                  All Projects
+                </motion.button>
+                <motion.button
+                  onClick={() => setTriggerProjectSetup(true)}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="bg-cyber-blue hover:bg-blue-600 text-black font-semibold py-2 px-4 rounded-lg transition-colors flex items-center"
                 >
                   <Plus className="w-4 h-4 mr-2" />
                   Add Project
@@ -404,12 +415,23 @@ return (
                 </div>
               </div>
 
-              <ProjectSetup
-                onProjectCreated={handleProjectCreated}
-                triggerOpen={triggerProjectSetup}
-                buttonText="Add Your First Project"
-                buttonIcon={<Plus className="w-5 h-5 mr-2" />}
-              />
+              <div className="flex flex-col sm:flex-row gap-4">
+                <ProjectSetup
+                  onProjectCreated={handleProjectCreated}
+                  triggerOpen={triggerProjectSetup}
+                  buttonText="Add Your First Project"
+                  buttonIcon={<Plus className="w-5 h-5 mr-2" />}
+                />
+                <motion.button
+                  onClick={() => router.push('/projects')}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-3 px-6 rounded-lg transition-colors flex items-center"
+                >
+                  <GitBranch className="w-5 h-5 mr-2" />
+                  View All Projects
+                </motion.button>
+              </div>
             </motion.div>
           )}
 
