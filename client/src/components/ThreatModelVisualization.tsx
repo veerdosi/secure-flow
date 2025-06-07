@@ -3,7 +3,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import * as THREE from 'three';
-import { ThreatModel } from '@/types';
+import { ThreatModel, ThreatNode, ThreatEdge, AttackVector } from '@/types';
 
 interface ThreatModelVisualizationProps {
   threatModel?: ThreatModel;
@@ -15,6 +15,8 @@ const ThreatModelVisualization: React.FC<ThreatModelVisualizationProps> = ({ thr
   const rendererRef = useRef<THREE.WebGLRenderer>();
   const cameraRef = useRef<THREE.PerspectiveCamera>();
   const [isLoaded, setIsLoaded] = useState(false);
+  const [selectedNode, setSelectedNode] = useState<ThreatNode | null>(null);
+  const [hoveredAttackVector, setHoveredAttackVector] = useState<AttackVector | null>(null);
 
   useEffect(() => {
     if (!mountRef.current) return;
@@ -43,16 +45,17 @@ const ThreatModelVisualization: React.FC<ThreatModelVisualizationProps> = ({ thr
 
     mountRef.current.appendChild(renderer.domElement);
 
-    // Create mock 3D threat model
-    createThreatModel(scene);
+    // Create threat model from actual data
+    if (threatModel && threatModel.nodes.length > 0) {
+      createRealThreatModel(scene, threatModel);
+    } else {
+      createFallbackModel(scene);
+    }
 
     // Animation loop
     const animate = () => {
       requestAnimationFrame(animate);
-
-      // Rotate the entire scene slowly
-      scene.rotation.y += 0.005;
-
+      scene.rotation.y += 0.002;
       renderer.render(scene, camera);
     };
 
@@ -77,122 +80,198 @@ const ThreatModelVisualization: React.FC<ThreatModelVisualizationProps> = ({ thr
       }
       renderer.dispose();
     };
-  }, []);
+  }, [threatModel]);
 
-  const createThreatModel = (scene: THREE.Scene) => {
-    // Create nodes representing system components
-    const nodes = [
-      { position: [0, 2, 0], color: 0x39ff14, label: 'API Gateway', vulnerable: false },
-      { position: [-3, 0, 0], color: 0xff6b35, label: 'Database', vulnerable: true },
-      { position: [3, 0, 0], color: 0x00d4ff, label: 'Auth Service', vulnerable: false },
-      { position: [0, -2, 0], color: 0xff073a, label: 'File System', vulnerable: true },
-      { position: [0, 0, 3], color: 0x39ff14, label: 'External API', vulnerable: false },
-    ];
+  const getRiskColor = (riskLevel: string) => {
+    switch (riskLevel) {
+      case 'CRITICAL': return 0xff073a;
+      case 'HIGH': return 0xff6b35;
+      case 'MEDIUM': return 0xffeb3b;
+      case 'LOW': return 0x39ff14;
+      default: return 0x00d4ff;
+    }
+  };
 
-    const nodeObjects: THREE.Mesh[] = [];
+  const getNodeShape = (type: string) => {
+    switch (type) {
+      case 'database': return new THREE.BoxGeometry(1, 0.5, 1);
+      case 'api': return new THREE.ConeGeometry(0.5, 1, 6);
+      case 'frontend': return new THREE.OctahedronGeometry(0.5);
+      case 'external': return new THREE.TetrahedronGeometry(0.5);
+      default: return new THREE.SphereGeometry(0.5, 16, 16);
+    }
+  };
 
-    nodes.forEach((node, index) => {
-      // Create node geometry
-      const geometry = new THREE.SphereGeometry(0.5, 32, 32);
+  const createRealThreatModel = (scene: THREE.Scene, model: ThreatModel) => {
+    const nodeObjects = new Map<string, THREE.Mesh>();
+
+    // Position nodes in a circle or grid
+    const radius = 4;
+    const nodeCount = model.nodes.length;
+
+    model.nodes.forEach((node, index) => {
+      const angle = (index / nodeCount) * Math.PI * 2;
+      const x = node.position?.x || Math.cos(angle) * radius;
+      const y = node.position?.y || Math.sin(angle) * radius;
+      const z = node.position?.z || 0;
+
+      const geometry = getNodeShape(node.type);
       const material = new THREE.MeshPhongMaterial({
-        color: node.color,
+        color: getRiskColor(node.riskLevel),
         transparent: true,
         opacity: 0.8,
         shininess: 100
       });
 
       const nodeMesh = new THREE.Mesh(geometry, material);
-      nodeMesh.position.set(node.position[0], node.position[1], node.position[2]);
+      nodeMesh.position.set(x, y, z);
+      nodeMesh.userData = { node, type: 'threatNode' };
 
-      // Add pulsing animation for vulnerable nodes
-      if (node.vulnerable) {
-        const pulseAnimation = () => {
-          const time = Date.now() * 0.005;
-          nodeMesh.scale.setScalar(1 + Math.sin(time) * 0.2);
-          material.opacity = 0.6 + Math.sin(time) * 0.3;
-        };
-
+      // Animate high-risk nodes
+      if (node.riskLevel === 'HIGH' || node.riskLevel === 'CRITICAL') {
         const animate = () => {
-          pulseAnimation();
+          const time = Date.now() * 0.003;
+          nodeMesh.scale.setScalar(1 + Math.sin(time + index) * 0.15);
+          material.opacity = 0.7 + Math.sin(time + index) * 0.2;
           requestAnimationFrame(animate);
         };
         animate();
       }
 
       scene.add(nodeMesh);
-      nodeObjects.push(nodeMesh);
+      nodeObjects.set(node.id, nodeMesh);
 
-      // Add glow effect
-      const glowGeometry = new THREE.SphereGeometry(0.7, 16, 16);
-      const glowMaterial = new THREE.MeshBasicMaterial({
-        color: node.color,
-        transparent: true,
-        opacity: 0.1,
-      });
-      const glow = new THREE.Mesh(glowGeometry, glowMaterial);
-      glow.position.copy(nodeMesh.position);
-      scene.add(glow);
-    });
+      // Add vulnerability indicators
+      if (node.vulnerabilities.length > 0) {
+        const vulnGeometry = new THREE.RingGeometry(0.7, 0.9, 8);
+        const vulnMaterial = new THREE.MeshBasicMaterial({
+          color: 0xff073a,
+          transparent: true,
+          opacity: 0.3,
+          side: THREE.DoubleSide
+        });
+        const vulnRing = new THREE.Mesh(vulnGeometry, vulnMaterial);
+        vulnRing.position.copy(nodeMesh.position);
+        scene.add(vulnRing);
 
-    // Create connections between nodes
-    const connections = [
-      [0, 1], [0, 2], [1, 3], [2, 3], [0, 4]
-    ];
-
-    connections.forEach(([startIdx, endIdx]) => {
-      const start = nodes[startIdx];
-      const end = nodes[endIdx];
-
-      const startPos = new THREE.Vector3(start.position[0], start.position[1], start.position[2]);
-      const endPos = new THREE.Vector3(end.position[0], end.position[1], end.position[2]);
-
-      // Create animated line
-      const points = [];
-      const segments = 20;
-
-      for (let i = 0; i <= segments; i++) {
-        const t = i / segments;
-        points.push(startPos.clone().lerp(endPos, t));
-      }
-
-      const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
-      const lineMaterial = new THREE.LineBasicMaterial({
-        color: 0x00d4ff,
-        transparent: true,
-        opacity: 0.4,
-      });
-
-      const line = new THREE.Line(lineGeometry, lineMaterial);
-      scene.add(line);
-
-      // Add flowing particles along the line
-      const particleGeometry = new THREE.SphereGeometry(0.05, 8, 8);
-      const particleMaterial = new THREE.MeshBasicMaterial({ color: 0x00d4ff });
-
-      for (let i = 0; i < 3; i++) {
-        const particle = new THREE.Mesh(particleGeometry, particleMaterial);
-        scene.add(particle);
-
-        const animateParticle = () => {
-          const time = (Date.now() * 0.001 + i * 2) % 1;
-          particle.position.copy(startPos.clone().lerp(endPos, time));
-          requestAnimationFrame(animateParticle);
+        // Rotate vulnerability ring
+        const rotateRing = () => {
+          vulnRing.rotation.z += 0.01;
+          requestAnimationFrame(rotateRing);
         };
-        animateParticle();
+        rotateRing();
       }
     });
 
-    // Add ambient light
+    // Create edges/connections
+    model.edges.forEach((edge) => {
+      const sourceNode = nodeObjects.get(edge.source);
+      const targetNode = nodeObjects.get(edge.target);
+
+      if (sourceNode && targetNode) {
+        const points = [sourceNode.position, targetNode.position];
+        const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
+        
+        const lineColor = edge.encrypted ? 0x39ff14 : 
+                         edge.authenticated ? 0xffeb3b : 
+                         getRiskColor(edge.riskLevel);
+
+        const lineMaterial = new THREE.LineBasicMaterial({
+          color: lineColor,
+          transparent: true,
+          opacity: edge.encrypted ? 0.8 : 0.4,
+          linewidth: edge.type === 'trust_boundary' ? 3 : 1
+        });
+
+        const line = new THREE.Line(lineGeometry, lineMaterial);
+        line.userData = { edge, type: 'threatEdge' };
+        scene.add(line);
+
+        // Add data flow particles for active connections
+        if (edge.type === 'data_flow' || edge.type === 'api_call') {
+          const particleGeometry = new THREE.SphereGeometry(0.03, 8, 8);
+          const particleMaterial = new THREE.MeshBasicMaterial({ 
+            color: lineColor,
+            transparent: true,
+            opacity: 0.8
+          });
+
+          for (let i = 0; i < 2; i++) {
+            const particle = new THREE.Mesh(particleGeometry, particleMaterial);
+            scene.add(particle);
+
+            const animateParticle = () => {
+              const time = (Date.now() * 0.002 + i * Math.PI) % 1;
+              particle.position.lerpVectors(sourceNode.position, targetNode.position, time);
+              requestAnimationFrame(animateParticle);
+            };
+            animateParticle();
+          }
+        }
+      }
+    });
+
+    // Add attack vector visualization
+    model.attackVectors.forEach((vector, index) => {
+      if (vector.affectedNodes.length > 0) {
+        vector.affectedNodes.forEach(nodeId => {
+          const node = nodeObjects.get(nodeId);
+          if (node) {
+            // Create attack path indicator
+            const pathGeometry = new THREE.SphereGeometry(0.1, 8, 8);
+            const pathMaterial = new THREE.MeshBasicMaterial({
+              color: getRiskColor(vector.severity),
+              transparent: true,
+              opacity: 0.6
+            });
+
+            const pathIndicator = new THREE.Mesh(pathGeometry, pathMaterial);
+            pathIndicator.position.set(
+              node.position.x + Math.random() * 0.5 - 0.25,
+              node.position.y + Math.random() * 0.5 - 0.25,
+              node.position.z + 1
+            );
+            pathIndicator.userData = { attackVector: vector, type: 'attackVector' };
+
+            // Floating animation
+            const float = () => {
+              const time = Date.now() * 0.001;
+              pathIndicator.position.y += Math.sin(time + index) * 0.002;
+              requestAnimationFrame(float);
+            };
+            float();
+
+            scene.add(pathIndicator);
+          }
+        });
+      }
+    });
+
+    addLighting(scene);
+  };
+
+  const createFallbackModel = (scene: THREE.Scene) => {
+    // Create a simple fallback when no threat model data is available
+    const fallbackText = new THREE.TextureLoader().load('data:image/svg+xml;base64,' + 
+      btoa('<svg xmlns="http://www.w3.org/2000/svg" width="256" height="128"><text x="128" y="64" text-anchor="middle" font-family="Arial" font-size="16" fill="white">No Threat Model Available</text></svg>'));
+    
+    const material = new THREE.MeshBasicMaterial({ map: fallbackText, transparent: true });
+    const geometry = new THREE.PlaneGeometry(4, 2);
+    const plane = new THREE.Mesh(geometry, material);
+    scene.add(plane);
+
+    addLighting(scene);
+  };
+
+  const addLighting = (scene: THREE.Scene) => {
     const ambientLight = new THREE.AmbientLight(0x404040, 0.4);
     scene.add(ambientLight);
 
-    // Add directional light
     const directionalLight = new THREE.DirectionalLight(0x00d4ff, 0.8);
     directionalLight.position.set(5, 5, 5);
     directionalLight.castShadow = true;
     scene.add(directionalLight);
 
-    // Add point light for dramatic effect
     const pointLight = new THREE.PointLight(0x39ff14, 1, 100);
     pointLight.position.set(0, 0, 5);
     scene.add(pointLight);
@@ -202,7 +281,6 @@ const ThreatModelVisualization: React.FC<ThreatModelVisualizationProps> = ({ thr
     <div className="relative w-full h-full">
       <div ref={mountRef} className="w-full h-full" />
 
-      {/* Loading overlay */}
       {!isLoaded && (
         <div className="absolute inset-0 flex items-center justify-center bg-dark-bg/80">
           <motion.div
@@ -213,29 +291,70 @@ const ThreatModelVisualization: React.FC<ThreatModelVisualizationProps> = ({ thr
         </div>
       )}
 
+      {/* Threat Model Stats */}
+      {threatModel && (
+        <div className="absolute top-4 right-4 bg-dark-card/90 backdrop-blur-sm border border-dark-border rounded-lg p-3 max-w-sm">
+          <h4 className="text-sm font-semibold mb-2">Threat Model Analysis</h4>
+          <div className="space-y-1 text-xs">
+            <div className="flex justify-between">
+              <span>Components:</span>
+              <span className="text-cyber-blue">{threatModel.nodes.length}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Connections:</span>
+              <span className="text-cyber-blue">{threatModel.edges.length}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Attack Vectors:</span>
+              <span className="text-cyber-orange">{threatModel.attackVectors.length}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Attack Surface:</span>
+              <span className="text-cyber-red">{threatModel.attackSurface.score || 'N/A'}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Legend */}
-      <div className="absolute top-4 right-4 bg-dark-card/90 backdrop-blur-sm border border-dark-border rounded-lg p-3">
-        <h4 className="text-sm font-semibold mb-2">System Components</h4>
+      <div className="absolute top-4 left-4 bg-dark-card/90 backdrop-blur-sm border border-dark-border rounded-lg p-3">
+        <h4 className="text-sm font-semibold mb-2">Risk Levels</h4>
         <div className="space-y-1 text-xs">
           <div className="flex items-center space-x-2">
             <div className="w-3 h-3 bg-cyber-green rounded-full"></div>
-            <span>Secure</span>
+            <span>Low Risk</span>
           </div>
           <div className="flex items-center space-x-2">
-            <div className="w-3 h-3 bg-cyber-orange rounded-full"></div>
+            <div className="w-3 h-3 bg-yellow-400 rounded-full"></div>
             <span>Medium Risk</span>
           </div>
           <div className="flex items-center space-x-2">
+            <div className="w-3 h-3 bg-cyber-orange rounded-full"></div>
+            <span>High Risk</span>
+          </div>
+          <div className="flex items-center space-x-2">
             <div className="w-3 h-3 bg-cyber-red rounded-full animate-pulse"></div>
-            <span>Vulnerable</span>
+            <span>Critical Risk</span>
           </div>
         </div>
       </div>
 
-      {/* Controls hint */}
-      <div className="absolute bottom-4 left-4 text-xs text-gray-400">
+      {/* Attack Surface Summary */}
+      {threatModel?.attackSurface && (
+        <div className="absolute bottom-4 left-4 bg-dark-card/90 backdrop-blur-sm border border-dark-border rounded-lg p-3">
+          <h4 className="text-sm font-semibold mb-2">Attack Surface</h4>
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div>Endpoints: {threatModel.attackSurface.endpoints}</div>
+            <div>Input Points: {threatModel.attackSurface.inputPoints}</div>
+            <div>External Deps: {threatModel.attackSurface.externalDependencies}</div>
+            <div>Privileged: {threatModel.attackSurface.privilegedFunctions}</div>
+          </div>
+        </div>
+      )}
+
+      <div className="absolute bottom-4 right-4 text-xs text-gray-400">
         <p>🖱️ Interactive 3D threat model</p>
-        <p>💫 Animated data flows and vulnerabilities</p>
+        <p>💫 Real-time risk visualization</p>
       </div>
     </div>
   );
