@@ -216,6 +216,12 @@ router.post('/trigger-scheduled',
 
 // Background analysis processing
 async function processAnalysis(analysisId: string, projectId: string, commitHash?: string) {
+  logger.info(`🚀 Starting analysis process`, {
+    analysisId,
+    projectId,
+    commitHash: commitHash || 'main'
+  });
+
   try {
     // Get analysis to get userId
     const analysis = await Analysis.findById(analysisId);
@@ -245,8 +251,24 @@ async function processAnalysis(analysisId: string, projectId: string, commitHash
     });
 
     // Get project files
+    logger.info(`📁 Fetching project files from GitLab`, {
+      analysisId,
+      projectId,
+      commitHash: commitHash || 'main',
+      userId
+    });
+
     const files = await gitlabService.getProjectFiles(projectId, userId, commitHash || 'main');
-    logger.info(`Found ${files.length} code files for analysis`);
+    
+    logger.info(`📁 Retrieved ${files.length} files from GitLab`, {
+      analysisId,
+      projectId,
+      fileTypes: files.reduce((acc: any, f) => {
+        const ext = f.path.split('.').pop() || 'unknown';
+        acc[ext] = (acc[ext] || 0) + 1;
+        return acc;
+      }, {})
+    });
 
     await Analysis.findByIdAndUpdate(analysisId, {
       stage: 'STATIC_ANALYSIS',
@@ -257,26 +279,82 @@ async function processAnalysis(analysisId: string, projectId: string, commitHash
     const allVulnerabilities = [];
     let totalScore = 0;
     let fileCount = 0;
+    let analysisErrors = 0;
 
-    for (const file of files.slice(0, 10)) { // Limit for demo
+    logger.info(`🔍 Starting file analysis loop`, {
+      analysisId,
+      totalFiles: files.length,
+      analyzing: Math.min(files.length, 10)
+    });
+
+    for (const [index, file] of files.slice(0, 10).entries()) {
+      logger.info(`📄 Analyzing file ${index + 1}/${Math.min(files.length, 10)}: ${file.path}`, {
+        analysisId,
+        fileName: file.path,
+        fileSize: file.size || 'unknown'
+      });
+
       try {
+        const startTime = Date.now();
         const content = await gitlabService.getFileContent(projectId, userId, file.path, commitHash || 'main');
+        
+        logger.info(`📥 Retrieved file content for ${file.path}`, {
+          analysisId,
+          contentLength: content.length,
+          retrievalTime: Date.now() - startTime
+        });
+
+        const aiStartTime = Date.now();
         const aiResult = await aiAnalysisService.analyzeCode(content, file.path);
+        
+        logger.info(`🤖 AI analysis completed for ${file.path}`, {
+          analysisId,
+          aiProcessingTime: Date.now() - aiStartTime,
+          vulnerabilities: aiResult.vulnerabilities?.length || 0,
+          securityScore: aiResult.securityScore,
+          threatLevel: aiResult.threatLevel || 'unknown'
+        });
 
         if (aiResult.vulnerabilities) {
-          allVulnerabilities.push(...aiResult.vulnerabilities.map((v: any) => ({
+          const vulnerabilities = aiResult.vulnerabilities.map((v: any) => ({
             ...v,
             file: file.path,
             id: `vuln_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          })));
+          }));
+          
+          allVulnerabilities.push(...vulnerabilities);
+          
+          logger.info(`📝 Added vulnerabilities from ${file.path}`, {
+            analysisId,
+            newVulns: vulnerabilities.length,
+            totalVulns: allVulnerabilities.length,
+            severities: vulnerabilities.reduce((acc: any, v) => {
+              acc[v.severity] = (acc[v.severity] || 0) + 1;
+              return acc;
+            }, {})
+          });
         }
 
         totalScore += aiResult.securityScore || 50;
         fileCount++;
       } catch (error) {
-        logger.warn(`Failed to analyze file ${file.path}:`, error);
+        analysisErrors++;
+        logger.error(`❌ Failed to analyze file ${file.path}`, {
+          analysisId,
+          fileName: file.path,
+          error: error instanceof Error ? error.message : 'Unknown error',
+          stack: error instanceof Error ? error.stack : undefined
+        });
       }
     }
+
+    logger.info(`📊 File analysis complete`, {
+      analysisId,
+      filesAnalyzed: fileCount,
+      analysisErrors,
+      totalVulnerabilities: allVulnerabilities.length,
+      averageScore: fileCount > 0 ? Math.round(totalScore / fileCount) : 50
+    });
 
     await Analysis.findByIdAndUpdate(analysisId, {
       stage: 'AI_ANALYSIS',
@@ -284,10 +362,21 @@ async function processAnalysis(analysisId: string, projectId: string, commitHash
     });
 
     // Generate threat model
+    logger.info(`🧠 Generating threat model`, {
+      analysisId,
+      filesCount: files.length
+    });
+
     const threatModel = await aiAnalysisService.generateThreatModel(
       files.map(f => f.path),
       { projectId, fileCount: files.length }
     );
+
+    logger.info(`✅ Threat model generated`, {
+      analysisId,
+      components: threatModel.components?.length || 0,
+      threats: threatModel.threats?.length || 0
+    });
 
     await Analysis.findByIdAndUpdate(analysisId, {
       stage: 'THREAT_MODELING',
@@ -300,11 +389,29 @@ async function processAnalysis(analysisId: string, projectId: string, commitHash
                        allVulnerabilities.some(v => v.severity === 'HIGH') ? 'HIGH' :
                        allVulnerabilities.some(v => v.severity === 'MEDIUM') ? 'MEDIUM' : 'LOW';
 
+    logger.info(`📈 Final scores calculated`, {
+      analysisId,
+      avgScore,
+      threatLevel,
+      totalVulns: allVulnerabilities.length
+    });
+
     // Generate remediation steps
+    logger.info(`🔧 Generating remediation steps`, {
+      analysisId,
+      vulnerabilityCount: allVulnerabilities.length
+    });
+
     const remediationSteps = await aiAnalysisService.generateRemediationSteps(allVulnerabilities);
 
     // Generate automated remediation actions
     const remediationActions = await remediationService.generateRemediationActions(allVulnerabilities, files);
+
+    logger.info(`🛠️ Remediation generated`, {
+      analysisId,
+      remediationSteps: remediationSteps.length,
+      automatedActions: remediationActions.length
+    });
 
     // Calculate vulnerability changes
     let newVulnerabilities = 0;
@@ -339,6 +446,16 @@ async function processAnalysis(analysisId: string, projectId: string, commitHash
 
     const finalStatus = needsApproval ? 'AWAITING_APPROVAL' : 'COMPLETED';
 
+    logger.info(`💾 Saving final analysis results`, {
+      analysisId,
+      status: finalStatus,
+      needsApproval,
+      avgScore,
+      threatLevel,
+      vulnerabilityCount: allVulnerabilities.length,
+      remediationActions: remediationActions.length
+    });
+
     // Final update
     await Analysis.findByIdAndUpdate(analysisId, {
       status: finalStatus,
@@ -371,12 +488,17 @@ async function processAnalysis(analysisId: string, projectId: string, commitHash
     });
 
     if (needsApproval) {
-      logger.info(`Analysis ${analysisId} completed - awaiting human approval for ${remediationActions.length} remediation actions`);
+      logger.info(`✅ Analysis ${analysisId} completed - awaiting human approval for ${remediationActions.length} remediation actions`);
     } else {
-      logger.info(`Analysis ${analysisId} completed successfully with no remediations needed`);
+      logger.info(`✅ Analysis ${analysisId} completed successfully with no remediations needed`);
     }
   } catch (error) {
-    logger.error(`Analysis ${analysisId} failed:`, error);
+    logger.error(`💥 Analysis ${analysisId} failed:`, {
+      analysisId,
+      projectId,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    });
 
     await Analysis.findByIdAndUpdate(analysisId, {
       status: 'FAILED',

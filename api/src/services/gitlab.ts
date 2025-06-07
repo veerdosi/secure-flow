@@ -72,9 +72,21 @@ class GitLabService {
   }
 
   async getProjectFiles(projectId: string, userId: string, ref: string = 'main'): Promise<GitLabFile[]> {
+    logger.info(`📁 Starting GitLab file retrieval`, {
+      projectId,
+      userId,
+      ref
+    });
+
     try {
       const config = await this.getGitLabConfig(userId);
       const client = this.createGitLabClient(config.baseUrl, config.apiToken);
+
+      logger.info(`🔗 Making GitLab API request for project tree`, {
+        projectId,
+        ref,
+        baseUrl: config.baseUrl
+      });
 
       // Get repository tree
       const response = await client.get(`/projects/${projectId}/repository/tree`, {
@@ -85,6 +97,12 @@ class GitLabService {
         }
       });
 
+      logger.info(`📦 GitLab API response received`, {
+        projectId,
+        totalItems: response.data.length,
+        statusCode: response.status
+      });
+
       // Filter for files only and common source code extensions
       const codeExtensions = [
         '.js', '.ts', '.jsx', '.tsx', '.py', '.java', '.cpp', '.c', '.cs', '.php',
@@ -93,7 +111,7 @@ class GitLabService {
         '.json', '.xml', '.yaml', '.yml', '.toml', '.ini', '.cfg', '.conf'
       ];
 
-      return response.data
+      const filteredFiles = response.data
         .filter((item: GitLabFile) => {
           if (item.type !== 'blob') return false;
           return codeExtensions.some(ext => item.name.toLowerCase().endsWith(ext));
@@ -105,25 +123,73 @@ class GitLabService {
           path: item.path,
           mode: item.mode
         }));
+
+      logger.info(`✅ GitLab files filtered and processed`, {
+        projectId,
+        totalFiles: response.data.length,
+        codeFiles: filteredFiles.length,
+        fileTypes: filteredFiles.reduce((acc: any, f) => {
+          const ext = f.name.split('.').pop() || 'unknown';
+          acc[ext] = (acc[ext] || 0) + 1;
+          return acc;
+        }, {})
+      });
+
+      return filteredFiles;
     } catch (error: any) {
-      logger.error('Failed to get GitLab project files:', error);
+      logger.error(`❌ Failed to get GitLab project files`, {
+        projectId,
+        userId,
+        ref,
+        error: error.message,
+        status: error.response?.status,
+        statusText: error.response?.statusText
+      });
       throw new Error(`Failed to get project files: ${error.message}`);
     }
   }
 
   async getFileContent(projectId: string, userId: string, filePath: string, ref: string = 'main'): Promise<string> {
+    logger.info(`📄 Fetching file content from GitLab`, {
+      projectId,
+      filePath,
+      ref,
+      userId
+    });
+
     try {
       const config = await this.getGitLabConfig(userId);
       const client = this.createGitLabClient(config.baseUrl, config.apiToken);
 
       const encodedPath = encodeURIComponent(filePath);
+      
+      logger.info(`🌐 Making GitLab API request for file content`, {
+        projectId,
+        encodedPath,
+        ref
+      });
+
       const response = await client.get(`/projects/${projectId}/repository/files/${encodedPath}/raw`, {
         params: { ref }
       });
 
+      logger.info(`✅ File content retrieved successfully`, {
+        projectId,
+        filePath,
+        contentLength: response.data.length,
+        statusCode: response.status
+      });
+
       return response.data;
     } catch (error: any) {
-      logger.error('Failed to get GitLab file content:', error);
+      logger.error(`❌ Failed to get GitLab file content`, {
+        projectId,
+        filePath,
+        ref,
+        error: error.message,
+        status: error.response?.status,
+        statusText: error.response?.statusText
+      });
       throw new Error(`Failed to get file content: ${error.message}`);
     }
   }

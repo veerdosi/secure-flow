@@ -13,10 +13,28 @@ interface RemediationResult {
 
 class RemediationService {
   async generateRemediationActions(vulnerabilities: any[], projectFiles: any[]): Promise<any[]> {
+    logger.info(`🛠️ Starting remediation action generation`, {
+      vulnerabilities: vulnerabilities.length,
+      projectFiles: projectFiles.length,
+      severityCounts: vulnerabilities.reduce((acc: any, v) => {
+        acc[v.severity] = (acc[v.severity] || 0) + 1;
+        return acc;
+      }, {})
+    });
+
     const actions = [];
+    let processedCount = 0;
+    let errorCount = 0;
 
     for (const vuln of vulnerabilities) {
       try {
+        logger.info(`🔧 Generating fix for vulnerability ${processedCount + 1}/${vulnerabilities.length}`, {
+          file: vuln.file,
+          type: vuln.type,
+          severity: vuln.severity,
+          line: vuln.line
+        });
+
         const remediationSuggestion = await aiAnalysisService.generateCodeFix(
           vuln.file,
           vuln.code,
@@ -25,7 +43,7 @@ class RemediationService {
         );
 
         if (remediationSuggestion) {
-          actions.push({
+          const action = {
             id: `fix_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
             type: this.getRemediationType(vuln.type),
             title: `Fix ${vuln.type} in ${vuln.file}`,
@@ -38,12 +56,43 @@ class RemediationService {
             automated: remediationSuggestion.confidence > 80,
             estimatedRisk: this.calculateEstimatedRisk(vuln.severity, remediationSuggestion.confidence),
             confidence: remediationSuggestion.confidence
+          };
+
+          actions.push(action);
+
+          logger.info(`✅ Remediation action generated`, {
+            actionId: action.id,
+            confidence: action.confidence,
+            automated: action.automated,
+            estimatedRisk: action.estimatedRisk
           });
+        } else {
+          logger.warn(`⚠️ No remediation suggestion generated for ${vuln.file}:${vuln.line}`);
         }
+        
+        processedCount++;
       } catch (error) {
-        logger.warn(`Failed to generate remediation for vulnerability in ${vuln.file}:`, error);
+        errorCount++;
+        logger.error(`❌ Failed to generate remediation for vulnerability in ${vuln.file}`, {
+          file: vuln.file,
+          type: vuln.type,
+          severity: vuln.severity,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
       }
     }
+
+    logger.info(`🎯 Remediation action generation complete`, {
+      totalVulnerabilities: vulnerabilities.length,
+      actionsGenerated: actions.length,
+      processedCount,
+      errorCount,
+      automatedActions: actions.filter(a => a.automated).length,
+      riskBreakdown: actions.reduce((acc: any, a) => {
+        acc[a.estimatedRisk] = (acc[a.estimatedRisk] || 0) + 1;
+        return acc;
+      }, {})
+    });
 
     return actions;
   }

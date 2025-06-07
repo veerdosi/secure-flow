@@ -81,6 +81,12 @@ class AIAnalysisService {
    * Enhanced code analysis with context awareness and specialized vulnerability detection
    */
   async analyzeCode(codeContent: string, filePath: string, context?: FileAnalysisContext): Promise<any> {
+    logger.info(`🔍 Starting AI analysis for ${filePath}`, {
+      fileSize: codeContent.length,
+      language: this.detectLanguage(filePath),
+      hasContext: !!context
+    });
+
     if (!this.model) {
       throw new Error('Gemini AI model not initialized. Check GEMINI_API_KEY configuration.');
     }
@@ -97,6 +103,13 @@ class AIAnalysisService {
       const projectType = context?.projectType || this.detectProjectType(filePath);
       const framework = context?.framework || this.detectFramework(codeContent, language);
 
+      logger.info(`📝 Analysis context for ${filePath}:`, {
+        language,
+        projectType,
+        framework,
+        codeLines: codeContent.split('\n').length
+      });
+
       const prompt = this.buildEnhancedAnalysisPrompt(codeContent, filePath, {
         language,
         projectType,
@@ -104,12 +117,34 @@ class AIAnalysisService {
         ...context
       });
 
+      logger.info(`🤖 Sending prompt to Gemini API`, {
+        promptLength: prompt.length,
+        model: process.env.GEMINI_MODEL || 'gemini-pro',
+        file: filePath
+      });
+
       const result = await this.executeWithRetry(async () => {
         const response = await this.model.generateContent(prompt);
-        return response.response.text();
+        const text = response.response.text();
+        logger.info(`✅ Gemini API response received`, {
+          responseLength: text.length,
+          file: filePath
+        });
+        return text;
+      });
+
+      logger.info(`🔧 Parsing AI response for ${filePath}`, {
+        rawResponseLength: result.length
       });
 
       const analysis = this.parseAndValidateAnalysis(result, filePath);
+      
+      logger.info(`📊 Analysis results for ${filePath}:`, {
+        vulnerabilities: analysis.vulnerabilities?.length || 0,
+        securityScore: analysis.securityScore,
+        threatLevel: analysis.threatLevel,
+        parseError: analysis.parseError || false
+      });
       
       // Enhance analysis with context-specific checks
       const enhancedAnalysis = await this.enhanceAnalysisWithContext(analysis, {
@@ -125,7 +160,11 @@ class AIAnalysisService {
       
       return enhancedAnalysis;
     } catch (error) {
-      logger.error(`❌ AI analysis failed for ${filePath}:`, error);
+      logger.error(`❌ AI analysis failed for ${filePath}:`, {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        filePath
+      });
       throw new Error(`AI analysis failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -175,6 +214,12 @@ class AIAnalysisService {
    * Enhanced threat modeling with architectural analysis
    */
   async generateThreatModel(codeFiles: string[], projectStructure: any, analysisHistory?: IAnalysis[]): Promise<any> {
+    logger.info(`🧠 Starting threat model generation`, {
+      codeFilesCount: codeFiles.length,
+      projectStructure: Object.keys(projectStructure),
+      hasAnalysisHistory: !!analysisHistory?.length
+    });
+
     if (!this.model) {
       throw new Error('Gemini AI model not initialized. Check GEMINI_API_KEY configuration.');
     }
@@ -184,6 +229,12 @@ class AIAnalysisService {
       const securityPatterns = this.identifySecurityPatterns(codeFiles);
       const dataFlows = this.analyzeDataFlows(codeFiles, projectStructure);
 
+      logger.info(`📊 Threat model analysis context`, {
+        projectType,
+        securityPatterns,
+        dataFlowsCount: Object.keys(dataFlows).length
+      });
+
       const prompt = this.buildThreatModelPrompt(codeFiles, projectStructure, {
         projectType,
         securityPatterns,
@@ -191,9 +242,17 @@ class AIAnalysisService {
         analysisHistory
       });
 
+      logger.info(`🤖 Sending threat model prompt to Gemini`, {
+        promptLength: prompt.length
+      });
+
       const result = await this.executeWithRetry(async () => {
         const response = await this.model.generateContent(prompt);
-        return response.response.text();
+        const text = response.response.text();
+        logger.info(`✅ Threat model response received`, {
+          responseLength: text.length
+        });
+        return text;
       });
 
       const threatModel = JSON.parse(result);
@@ -201,10 +260,18 @@ class AIAnalysisService {
       // Enhance with 3D visualization data for the frontend
       threatModel.visualization = this.generateVisualizationData(threatModel);
       
-      logger.info('✅ Enhanced threat model generated with architectural analysis');
+      logger.info(`✅ Enhanced threat model generated`, {
+        components: threatModel.components?.length || 0,
+        threats: threatModel.threats?.length || 0,
+        hasVisualization: !!threatModel.visualization
+      });
+      
       return threatModel;
     } catch (error) {
-      logger.error('❌ Threat model generation failed:', error);
+      logger.error(`❌ Threat model generation failed`, {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
+      });
       throw new Error(`Threat model generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -246,19 +313,41 @@ class AIAnalysisService {
    * Enhanced remediation with priority scoring and automated PR generation
    */
   async generateRemediationSteps(vulnerabilities: any[], projectContext?: any): Promise<any[]> {
+    logger.info(`🔧 Starting remediation generation`, {
+      vulnerabilityCount: vulnerabilities.length,
+      hasProjectContext: !!projectContext,
+      severityCounts: vulnerabilities.reduce((acc: any, v) => {
+        acc[v.severity] = (acc[v.severity] || 0) + 1;
+        return acc;
+      }, {})
+    });
+
     if (!this.model) {
       throw new Error('Gemini AI model not initialized. Check GEMINI_API_KEY configuration.');
     }
 
     try {
-      logger.info(`🔧 Generating remediation steps for ${vulnerabilities.length} vulnerabilities...`);
-      
       const prioritizedVulns = this.prioritizeVulnerabilities(vulnerabilities);
+      
+      logger.info(`📋 Vulnerabilities prioritized`, {
+        originalCount: vulnerabilities.length,
+        prioritizedCount: prioritizedVulns.length
+      });
+
       const prompt = this.buildRemediationPrompt(prioritizedVulns, projectContext);
+
+      logger.info(`🤖 Sending remediation prompt to Gemini`, {
+        promptLength: prompt.length,
+        vulnerabilities: prioritizedVulns.length
+      });
 
       const result = await this.executeWithRetry(async () => {
         const response = await this.model.generateContent(prompt);
-        return response.response.text();
+        const text = response.response.text();
+        logger.info(`✅ Remediation response received`, {
+          responseLength: text.length
+        });
+        return text;
       });
 
       const remediationSteps = JSON.parse(result);
@@ -272,10 +361,22 @@ class AIAnalysisService {
         prerequisites: this.identifyPrerequisites(step),
       }));
       
-      logger.info(`✅ Generated ${enhancedSteps.length} prioritized remediation steps`);
+      logger.info(`✅ Generated prioritized remediation steps`, {
+        totalSteps: enhancedSteps.length,
+        automatable: enhancedSteps.filter(s => s.automationPossible).length,
+        effortBreakdown: enhancedSteps.reduce((acc: any, s) => {
+          acc[s.estimatedEffort] = (acc[s.estimatedEffort] || 0) + 1;
+          return acc;
+        }, {})
+      });
+      
       return enhancedSteps;
     } catch (error) {
-      logger.error('❌ Remediation generation failed:', error);
+      logger.error(`❌ Remediation generation failed`, {
+        vulnerabilityCount: vulnerabilities.length,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
+      });
       throw new Error(`Remediation generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -288,14 +389,38 @@ class AIAnalysisService {
     for (let attempt = 1; attempt <= this.MAX_RETRIES; attempt++) {
       try {
         if (attempt > 1) {
+          logger.info(`🔄 Retry attempt ${attempt}/${this.MAX_RETRIES}`, {
+            delay: this.RATE_LIMIT_DELAY * attempt
+          });
           await new Promise(resolve => setTimeout(resolve, this.RATE_LIMIT_DELAY * attempt));
         }
-        return await operation();
+        
+        const startTime = Date.now();
+        const result = await operation();
+        const duration = Date.now() - startTime;
+        
+        logger.info(`✅ AI operation completed successfully`, {
+          attempt,
+          duration,
+          retryNeeded: attempt > 1
+        });
+        
+        return result;
       } catch (error) {
         lastError = error as Error;
-        logger.warn(`AI operation attempt ${attempt} failed:`, error);
+        logger.warn(`⚠️ AI operation attempt ${attempt} failed`, {
+          attempt,
+          maxRetries: this.MAX_RETRIES,
+          error: error instanceof Error ? error.message : 'Unknown error',
+          willRetry: attempt < this.MAX_RETRIES
+        });
         
         if (attempt === this.MAX_RETRIES) {
+          logger.error(`💥 All retry attempts exhausted`, {
+            totalAttempts: this.MAX_RETRIES,
+            finalError: lastError.message,
+            stack: lastError.stack
+          });
           break;
         }
       }
