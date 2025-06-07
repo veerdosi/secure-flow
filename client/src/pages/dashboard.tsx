@@ -5,6 +5,7 @@ import { Shield, GitBranch, Plus, AlertCircle, Settings, Zap, ArrowRight } from 
 import { useUser, UserProfile } from '@/components/UserProvider'
 import Dashboard from '@/components/Dashboard'
 import ProjectSetup from '@/components/ProjectSetup'
+import GitLabSettings from '@/components/GitLabSettings'
 import { projectAPI, systemAPI } from '@/utils/api'
 import { useRouter } from 'next/router'
 import { Project } from '@/types'
@@ -80,7 +81,7 @@ export default function DashboardPage() {
   const handleProjectCreated = (newProject: any) => {
     setProjects(prev => [...prev, newProject])
     setTriggerProjectSetup(false)
-    
+
     // Immediately set the new project as selected and navigate
     setSelectedProject(newProject)
     router.push(`/dashboard?project=${newProject._id}`, undefined, { shallow: true })
@@ -193,6 +194,14 @@ export default function DashboardPage() {
           </motion.div>
         </div>
       </div>
+
+      {/* GitLab Settings Modal */}
+      <GitLabSettings
+        isOpen={showGitLabSettings}
+        onClose={() => setShowGitLabSettings(false)}
+        onSuccess={handleGitLabConfigured}
+        currentSettings={user?.gitlabSettings}
+      />
     </>
   )
 }
@@ -252,7 +261,7 @@ if (selectedProject) {
         </div>
 
         <Dashboard projectId={selectedProject._id} />
-        
+
         {/* Project Setup Modal */}
         {triggerProjectSetup && (
           <ProjectSetup
@@ -261,6 +270,14 @@ if (selectedProject) {
             onClose={() => setTriggerProjectSetup(false)}
           />
         )}
+
+        {/* GitLab Settings Modal */}
+        <GitLabSettings
+          isOpen={showGitLabSettings}
+          onClose={() => setShowGitLabSettings(false)}
+          onSuccess={handleGitLabConfigured}
+          currentSettings={user?.gitlabSettings}
+        />
       </div>
     </>
   )
@@ -428,6 +445,14 @@ return (
           )}
         </motion.div>
       </div>
+
+      {/* GitLab Settings Modal */}
+      <GitLabSettings
+        isOpen={showGitLabSettings}
+        onClose={() => setShowGitLabSettings(false)}
+        onSuccess={handleGitLabConfigured}
+        currentSettings={user?.gitlabSettings}
+      />
     </div>
   </>
 )

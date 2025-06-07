@@ -309,14 +309,6 @@ export const UserProfile: React.FC<UserProfileProps> = ({
           )}
         </AnimatePresence>
       </div>
-
-      {/* GitLab Settings Modal */}
-      <GitLabSettings
-        isOpen={showGitLabSettings}
-        onClose={() => setShowGitLabSettings(false)}
-        onSuccess={handleGitLabSuccess}
-        currentSettings={user.gitlabSettings}
-      />
     </>
   );
 };
