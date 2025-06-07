@@ -131,7 +131,7 @@ export default function ProjectSettingsPage() {
 
     try {
       await projectAPI.delete(id as string)
-      router.push('/dashboard')
+      router.push('/projects')
     } catch (error: any) {
       console.error('Failed to delete project:', error)
       setError('Failed to delete project')
@@ -173,7 +173,7 @@ export default function ProjectSettingsPage() {
           <h1 className="text-2xl font-bold mb-2">Project Not Found</h1>
           <p className="text-gray-400 mb-6">The project you're looking for doesn't exist or you don't have access to it.</p>
           <button
-            onClick={() => router.push('/dashboard')}
+            onClick={() => router.push('/projects')}
             className="bg-cyber-blue hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors"
           >
             Back to Dashboard
@@ -197,7 +197,7 @@ export default function ProjectSettingsPage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
                 <button
-                  onClick={() => router.push(`/dashboard?project=${id}`)}
+                  onClick={() => router.push(`/projects=${id}`)}
                   className="text-gray-400 hover:text-white transition-colors"
                 >
                   <ArrowLeft className="w-6 h-6" />

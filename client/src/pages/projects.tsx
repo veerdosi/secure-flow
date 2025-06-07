@@ -188,7 +188,11 @@ export default function ProjectsPage() {
                 </div>
               </div>
               <motion.button
-                onClick={() => router.push('/dashboard')}
+                onClick={() => {
+                  // For now, we'll implement project creation through a modal or redirect to a setup page
+                  // You may want to create a dedicated project creation page later
+                  window.location.href = '/projects'
+                }}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 className="bg-cyber-blue hover:bg-blue-600 text-black font-semibold py-2 px-4 rounded-lg transition-colors flex items-center"
@@ -329,7 +333,7 @@ export default function ProjectsPage() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
-                onClick={() => router.push(`/dashboard?project=${project._id}`)}
+                onClick={() => router.push(`/projects/${project._id}`)}
                 className="bg-dark-card border border-dark-border rounded-xl p-6 hover:border-cyber-blue/50 transition-all cursor-pointer group"
               >
                 {/* Project Header */}
@@ -421,7 +425,7 @@ export default function ProjectsPage() {
               </p>
               {!searchTerm && filterStatus === 'all' && (
                 <motion.button
-                  onClick={() => router.push('/dashboard')}
+                  onClick={() => router.push('/projects')}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   className="bg-cyber-blue hover:bg-blue-600 text-black font-semibold py-3 px-6 rounded-lg transition-colors flex items-center mx-auto"

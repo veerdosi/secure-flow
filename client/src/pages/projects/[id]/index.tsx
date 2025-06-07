@@ -1,7 +1,7 @@
 import Head from 'next/head'
 import React, { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
-import { Shield, GitBranch, Plus, AlertCircle, Settings, ArrowRight } from 'lucide-react'
+import { Shield, GitBranch, Plus, AlertCircle, Settings, ArrowLeft } from 'lucide-react'
 import { useUser, UserProfile } from '@/components/UserProvider'
 import Dashboard from '@/components/Dashboard'
 import ProjectSetup from '@/components/ProjectSetup'
@@ -11,9 +11,10 @@ import { useRouter } from 'next/router'
 import { Project } from '@/types'
 import { useAppState } from '@/hooks/useAppState'
 
-export default function DashboardPage() {
+export default function ProjectDetailPage() {
   const { user, loading } = useUser()
   const router = useRouter()
+  const { id: projectId } = router.query
   const { 
     projects, 
     selectedProject, 
@@ -67,10 +68,18 @@ export default function DashboardPage() {
         if (projects.length === 0) {
           const projectData = await loadProjects()
           
-          // Don't auto-select project, let user choose
-          if (projectData.length > 0 && router.query.project) {
-            const requestedProject = projectData.find((p: any) => p._id === router.query.project)
+          // Set selected project based on route parameter
+          if (projectId && projectData.length > 0) {
+            const requestedProject = projectData.find((p: any) => p._id === projectId)
             if (requestedProject) {
+              setSelectedProject(requestedProject)
+            }
+          }
+        } else {
+          // Set selected project if projects are already loaded
+          if (projectId) {
+            const requestedProject = projects.find((p: any) => p._id === projectId)
+            if (requestedProject && requestedProject._id !== selectedProject?._id) {
               setSelectedProject(requestedProject)
             }
           }
@@ -90,17 +99,21 @@ export default function DashboardPage() {
     }
 
     init()
-  }, [user, loading, initialized])
+  }, [user, loading, initialized, projectId, projects, selectedProject, setSelectedProject])
 
-  // Handle URL project selection
+  // Handle project ID changes in URL
   useEffect(() => {
-    if (router.query.project && projects.length > 0) {
-      const project = projects.find(p => p._id === router.query.project)
+    if (projectId && projects.length > 0) {
+      const project = projects.find(p => p._id === projectId)
       if (project && project._id !== selectedProject?._id) {
         setSelectedProject(project)
+      } else if (!project) {
+        // Project not found, redirect to projects list
+        setError('Project not found')
+        setTimeout(() => router.push('/projects'), 2000)
       }
     }
-  }, [router.query.project, projects, selectedProject, setSelectedProject])
+  }, [projectId, projects, selectedProject, setSelectedProject, router])
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -151,6 +164,55 @@ export default function DashboardPage() {
   }
 
   if (!user) return null
+
+  // Error state for missing project
+  if (error && error.includes('not found')) {
+    return (
+      <>
+        <Head>
+          <title>Project Not Found - SecureFlow AI</title>
+        </Head>
+        <div className="min-h-screen bg-dark-bg text-white">
+          <div className="border-b border-dark-border bg-dark-card/50 backdrop-blur-sm">
+            <div className="max-w-7xl mx-auto px-6 py-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <Shield className="w-8 h-8 text-cyber-blue" />
+                  <h1 className="text-2xl font-bold">SecureFlow AI</h1>
+                </div>
+                <UserProfile
+                  onGitLabConfigured={handleGitLabConfigured}
+                  showGitLabSettings={showGitLabSettings}
+                  setShowGitLabSettings={setShowGitLabSettings}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="max-w-4xl mx-auto px-6 py-16">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-center"
+            >
+              <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-6" />
+              <h2 className="text-3xl font-bold mb-4">Project Not Found</h2>
+              <p className="text-gray-400 mb-8">
+                The project you're looking for doesn't exist or you don't have access to it.
+              </p>
+              <button
+                onClick={() => router.push('/projects')}
+                className="bg-cyber-blue hover:bg-blue-600 text-white font-semibold py-2 px-6 rounded-lg transition-colors flex items-center mx-auto"
+              >
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back to Projects
+              </button>
+            </motion.div>
+          </div>
+        </div>
+      </>
+    )
+  }
 
   // System health error screen
   if (systemHealth?.status !== 'healthy') {
@@ -208,13 +270,22 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <button
-                onClick={handleRetrySystemCheck}
-                disabled={loadingData}
-                className="bg-cyber-blue hover:bg-blue-600 disabled:opacity-50 text-white font-semibold py-2 px-6 rounded-lg transition-colors"
-              >
-                {loadingData ? 'Checking...' : 'Retry System Check'}
-              </button>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <button
+                  onClick={handleRetrySystemCheck}
+                  disabled={loadingData}
+                  className="bg-cyber-blue hover:bg-blue-600 disabled:opacity-50 text-white font-semibold py-2 px-6 rounded-lg transition-colors"
+                >
+                  {loadingData ? 'Checking...' : 'Retry System Check'}
+                </button>
+                <button
+                  onClick={() => router.push('/projects')}
+                  className="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-6 rounded-lg transition-colors flex items-center"
+                >
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Back to Projects
+                </button>
+              </div>
             </motion.div>
           </div>
 
@@ -230,7 +301,7 @@ export default function DashboardPage() {
   }
 
   // Dashboard with selected project
-  if (selectedProject) {
+  if (selectedProject && selectedProject._id === projectId) {
     return (
       <>
         <Head>
@@ -270,7 +341,7 @@ export default function DashboardPage() {
                     whileTap={{ scale: 0.95 }}
                     className="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors flex items-center"
                   >
-                    <GitBranch className="w-4 h-4 mr-2" />
+                    <ArrowLeft className="w-4 h-4 mr-2" />
                     All Projects
                   </motion.button>
                   <motion.button
@@ -313,184 +384,14 @@ export default function DashboardPage() {
     )
   }
 
-  // Projects exist but none selected - show project selection
-  if (projects.length > 0) {
-    return (
-      <>
-        <Head>
-          <title>Select Project - SecureFlow AI</title>
-        </Head>
-        <div className="min-h-screen bg-dark-bg text-white">
-          <div className="border-b border-dark-border bg-dark-card/50 backdrop-blur-sm">
-            <div className="max-w-7xl mx-auto px-6 py-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <Shield className="w-8 h-8 text-cyber-blue" />
-                  <h1 className="text-2xl font-bold">SecureFlow AI</h1>
-                </div>
-                <UserProfile
-                  onGitLabConfigured={handleGitLabConfigured}
-                  showGitLabSettings={showGitLabSettings}
-                  setShowGitLabSettings={setShowGitLabSettings}
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="max-w-7xl mx-auto px-6 py-16">
-            <div className="text-center mb-12">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="mb-8"
-              >
-                <Shield className="w-16 h-16 text-cyber-blue mx-auto mb-6" />
-                <h2 className="text-3xl font-bold mb-4">Select a Project</h2>
-                <p className="text-gray-400 text-lg">
-                  Choose a project to view its security analysis dashboard
-                </p>
-              </motion.div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
-              {projects.map((project, index) => (
-                <motion.div
-                  key={project._id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                  onClick={() => handleProjectChange(project)}
-                  className="bg-dark-card border border-dark-border rounded-xl p-6 hover:border-cyber-blue/50 transition-all cursor-pointer group"
-                >
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-xl font-semibold text-white group-hover:text-cyber-blue transition-colors">
-                      {project.name}
-                    </h3>
-                    <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-cyber-blue group-hover:translate-x-1 transition-all" />
-                  </div>
-                  <p className="text-gray-400 text-sm mb-4 truncate">{project.repositoryUrl}</p>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-500">Branch: {project.branch}</span>
-                    <span className="text-gray-500">Scan: {project.scanFrequency}</span>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </>
-    )
-  }
-
-  // No projects state
+  // Loading state while project is being set
   return (
-    <>
-      <Head>
-        <title>SecureFlow AI - Add Your First Project</title>
-      </Head>
-      <div className="min-h-screen bg-dark-bg text-white">
-        <div className="border-b border-dark-border bg-dark-card/50 backdrop-blur-sm">
-          <div className="max-w-7xl mx-auto px-6 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <Shield className="w-8 h-8 text-cyber-blue" />
-                <h1 className="text-2xl font-bold">SecureFlow AI</h1>
-              </div>
-              <UserProfile
-                onGitLabConfigured={handleGitLabConfigured}
-                showGitLabSettings={showGitLabSettings}
-                setShowGitLabSettings={setShowGitLabSettings}
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="max-w-4xl mx-auto px-6 py-16">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center"
-          >
-            <GitBranch className="w-16 h-16 text-cyber-blue mx-auto mb-6" />
-            <h2 className="text-3xl font-bold mb-4">No Projects Configured</h2>
-            <p className="text-gray-400 mb-8 text-lg">
-              Connect your GitLab projects to start monitoring your code security in real-time.
-            </p>
-
-            {!user.gitlabSettings?.apiToken ? (
-              <div className="bg-gradient-to-r from-orange-500/10 to-red-500/10 border border-orange-500/50 rounded-xl p-8 mb-8 max-w-2xl mx-auto">
-                <div className="flex items-center justify-center mb-4">
-                  <Settings className="w-8 h-8 text-orange-400 mr-3" />
-                  <h3 className="text-xl font-semibold text-orange-400">GitLab Configuration Required</h3>
-                </div>
-                <p className="text-gray-300 mb-6">
-                  Configure your GitLab API token to start adding projects.
-                </p>
-                <button
-                  onClick={() => setShowGitLabSettings(true)}
-                  className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-semibold py-3 px-6 rounded-lg transition-all flex items-center mx-auto"
-                >
-                  <Settings className="w-5 h-5 mr-2" />
-                  Configure GitLab Settings
-                  <ArrowRight className="w-5 h-5 ml-2" />
-                </button>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center">
-                <div className="bg-dark-card border border-dark-border rounded-xl p-8 mb-8 max-w-lg">
-                  <div className="text-center">
-                    <div className="w-12 h-12 bg-cyber-green/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <Shield className="w-6 h-6 text-cyber-green" />
-                    </div>
-                    <h3 className="text-lg font-semibold text-cyber-green mb-2">GitLab Connected!</h3>
-                    <p className="text-gray-400 mb-4">
-                      Your GitLab integration is ready. Add your first project to start monitoring.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <ProjectSetup
-                    onProjectCreated={handleProjectCreated}
-                    triggerOpen={triggerProjectSetup}
-                    buttonText="Add Your First Project"
-                    buttonIcon={<Plus className="w-5 h-5 mr-2" />}
-                  />
-                  <button
-                    onClick={() => router.push('/projects')}
-                    className="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-3 px-6 rounded-lg transition-colors flex items-center"
-                  >
-                    <GitBranch className="w-5 h-5 mr-2" />
-                    View All Projects
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {error && (
-              <div className="mt-6 bg-red-500/10 border border-red-500/50 rounded-lg p-4 max-w-lg mx-auto">
-                <p className="text-red-400">{error}</p>
-                <button
-                  onClick={() => {
-                    setInitialized(false)
-                    setError('')
-                  }}
-                  className="mt-2 text-cyber-blue hover:text-blue-400 text-sm underline"
-                >
-                  Try again
-                </button>
-              </div>
-            )}
-          </motion.div>
-        </div>
-
-        <GitLabSettings
-          isOpen={showGitLabSettings}
-          onClose={() => setShowGitLabSettings(false)}
-          onSuccess={handleGitLabConfigured}
-          currentSettings={user?.gitlabSettings}
-        />
-      </div>
-    </>
+    <div className="min-h-screen bg-dark-bg text-white flex items-center justify-center">
+      <motion.div
+        animate={{ rotate: 360 }}
+        transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+        className="w-12 h-12 border-4 border-cyber-blue border-t-transparent rounded-full"
+      />
+    </div>
   )
 }

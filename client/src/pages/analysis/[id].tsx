@@ -312,7 +312,7 @@ const AnalysisPage: React.FC = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <button
-                onClick={() => project ? router.push(`/dashboard?projectId=${project._id}`) : router.push('/projects')}
+                onClick={() => project ? router.push(`/projects/${project._id}`) : router.push('/projects')}
                 className="flex items-center text-gray-400 hover:text-white transition-colors"
               >
                 <ArrowLeft className="w-5 h-5 mr-2" />
@@ -445,7 +445,7 @@ const AnalysisPage: React.FC = () => {
                 </div>
                 <div className="ml-auto">
                   <button
-                    onClick={() => project && router.push(`/dashboard?projectId=${project._id}`)}
+                    onClick={() => project && router.push(`/projects/${project._id}`)}
                     className="px-4 py-2 bg-cyber-blue text-black rounded-lg hover:bg-blue-600 transition-colors"
                   >
                     View Dashboard
@@ -538,7 +538,7 @@ const AnalysisPage: React.FC = () => {
             </p>
             <div className="flex gap-4 justify-center">
               <button
-                onClick={() => project && router.push(`/dashboard?projectId=${project._id}`)}
+                onClick={() => project && router.push(`/projects/${project._id}`)}
                 className="px-4 py-2 bg-dark-card border border-gray-600 rounded-lg text-gray-300 hover:text-white transition-colors"
               >
                 Back to Dashboard

@@ -83,7 +83,7 @@ const GoogleSignInButton: React.FC<GoogleSignInButtonProps> = ({
       console.log('Google sign-in successful:', result.user);
 
       // Redirect to dashboard
-      window.location.href = '/dashboard';
+      window.location.href = '/projects';
     } catch (error: any) {
       console.error('Google sign-in error:', error);
       const errorMessage = error.response?.data?.error || 'Google sign-in failed';

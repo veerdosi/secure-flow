@@ -12,7 +12,7 @@ export default function SignUpPage() {
 
   useEffect(() => {
     if (!loading && user) {
-      router.push('/dashboard')
+      router.push('/projects')
     }
   }, [user, loading, router])
 
@@ -75,7 +75,7 @@ export default function SignUpPage() {
           <AuthModal
             isOpen={true}
             onClose={() => router.push('/')}
-            onSuccess={() => router.push('/dashboard')}
+            onSuccess={() => router.push('/projects')}
             defaultMode="register"
           />
         </div>
