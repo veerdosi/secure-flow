@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { persist, createJSONStorage } from 'zustand/middleware'
 import { Project } from '@/types'
 
 interface AnalysisResults {
@@ -15,6 +15,7 @@ interface AppState {
   projects: Project[]
   selectedProject: Project | null
   analysisResults: Record<string, AnalysisResults> // projectId -> results
+  _hasHydrated: boolean
   setSystemHealth: (health: any) => void
   setProjects: (projects: Project[]) => void
   setSelectedProject: (project: Project | null) => void
@@ -23,6 +24,7 @@ interface AppState {
   isAnalysisStale: (projectId: string, maxAge?: number) => boolean
   clearState: () => void
   isHealthStale: () => boolean
+  setHasHydrated: (state: boolean) => void
 }
 
 export const useAppState = create<AppState>()(
@@ -33,6 +35,7 @@ export const useAppState = create<AppState>()(
       projects: [],
       selectedProject: null,
       analysisResults: {},
+      _hasHydrated: false,
       
       setSystemHealth: (health) => set({ 
         systemHealth: health, 
@@ -78,21 +81,39 @@ export const useAppState = create<AppState>()(
         selectedProject: null,
         analysisResults: {}
       }),      
+      
       // Check if health check is older than 5 minutes
       isHealthStale: () => {
         const { lastHealthCheck } = get()
         return Date.now() - lastHealthCheck > 300000
-      }
+      },
+
+      setHasHydrated: (state) => set({ _hasHydrated: state })
     }),
     {
       name: 'secure-flow-state',
+      storage: createJSONStorage(() => {
+        // Only use localStorage on client-side
+        if (typeof window !== 'undefined') {
+          return localStorage
+        }
+        // Fallback for SSR
+        return {
+          getItem: () => null,
+          setItem: () => {},
+          removeItem: () => {}
+        }
+      }),
       partialize: (state) => ({
         systemHealth: state.systemHealth,
         lastHealthCheck: state.lastHealthCheck,
         projects: state.projects,
         selectedProject: state.selectedProject,
         analysisResults: state.analysisResults
-      })
+      }),
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true)
+      }
     }
   )
 )

@@ -51,9 +51,15 @@ const Dashboard = ({ projectId: propProjectId, projectData }: DashboardProps) =>
   const [error, setError] = useState<string | null>(null);
   const [showApprovalModal, setShowApprovalModal] = useState(false);
   const [pendingApproval, setPendingApproval] = useState<any>(null);
+  const [mounted, setMounted] = useState(false);
 
-  // Don't start loading data until router is ready and we have a projectId
-  const isReady = router.isReady && projectId;
+  // Track client-side mount to prevent hydration issues
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Don't start loading data until router is ready, component is mounted, and we have a projectId
+  const isReady = mounted && router.isReady && projectId;
 
   useEffect(() => {
     if (projectData) {
@@ -317,7 +323,7 @@ const Dashboard = ({ projectId: propProjectId, projectData }: DashboardProps) =>
     );
   }
 
-  if (!project) {
+  if (!mounted || !project) {
     return (
       <div className="min-h-screen bg-dark-bg text-white flex items-center justify-center">
         <motion.div

@@ -22,14 +22,21 @@ export default function ProjectDetailPage() {
     setProjects, 
     setSelectedProject, 
     setSystemHealth,
-    isHealthStale 
+    isHealthStale,
+    _hasHydrated
   } = useAppState()
   
   const [triggerProjectSetup, setTriggerProjectSetup] = useState(false)
-  const [loadingData, setLoadingData] = useState(false)
+  const [loadingData, setLoadingData] = useState(true) // Start with true
   const [error, setError] = useState('')
   const [showGitLabSettings, setShowGitLabSettings] = useState(false)
-  const [initialized, setInitialized] = useState(false)
+  const [mounted, setMounted] = useState(false) // Track client-side mount
+  const [dataReady, setDataReady] = useState(false) // Track when data is ready
+
+  // Handle client-side mounting
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const loadProjects = useCallback(async () => {
     const projectData = await projectAPI.getAll()
@@ -57,40 +64,35 @@ export default function ProjectDetailPage() {
     }
   }, [setSystemHealth])
 
-  // Initialize data once
+  // Initialize data once, only on client-side after hydration
   useEffect(() => {
-    if (loading || initialized || !user) return
+    if (!mounted || loading || !user || !_hasHydrated || dataReady) return
 
     const init = async () => {
-      setLoadingData(true)
       try {
         // Load projects if empty
+        let currentProjects = projects
         if (projects.length === 0) {
           const projectData = await loadProjects()
-          
-          // Set selected project based on route parameter
-          if (projectId && projectData.length > 0) {
-            const requestedProject = projectData.find((p: any) => p._id === projectId)
-            if (requestedProject) {
-              setSelectedProject(requestedProject)
-            }
-          }
-        } else {
-          // Set selected project if projects are already loaded
-          if (projectId) {
-            const requestedProject = projects.find((p: any) => p._id === projectId)
-            if (requestedProject && requestedProject._id !== selectedProject?._id) {
-              setSelectedProject(requestedProject)
-            }
-          }
+          currentProjects = projectData
         }
-        
+
         // Check health if needed
         if (!systemHealth || isHealthStale()) {
           await checkSystemHealth()
         }
         
-        setInitialized(true)
+        // Set selected project based on route parameter
+        if (projectId && currentProjects.length > 0) {
+          const requestedProject = currentProjects.find((p: any) => p._id === projectId)
+          if (requestedProject && requestedProject._id !== selectedProject?._id) {
+            setSelectedProject(requestedProject)
+          } else if (!requestedProject) {
+            setError('Project not found')
+          }
+        }
+        
+        setDataReady(true)
       } catch (err: any) {
         setError('Failed to load data')
       } finally {
@@ -99,28 +101,26 @@ export default function ProjectDetailPage() {
     }
 
     init()
-  }, [user, loading, initialized, projectId, projects, selectedProject, setSelectedProject])
+  }, [mounted, user, loading, projectId, dataReady, _hasHydrated])
 
-  // Handle project ID changes in URL
+  // Handle project ID changes in URL (after initial load)
   useEffect(() => {
-    if (projectId && projects.length > 0) {
-      const project = projects.find(p => p._id === projectId)
-      if (project && project._id !== selectedProject?._id) {
-        setSelectedProject(project)
-      } else if (!project) {
-        // Project not found, redirect to projects list
-        setError('Project not found')
-        setTimeout(() => router.push('/projects'), 2000)
-      }
+    if (!dataReady || !projectId || !projects.length) return
+
+    const project = projects.find(p => p._id === projectId)
+    if (project && project._id !== selectedProject?._id) {
+      setSelectedProject(project)
+    } else if (!project && !error) {
+      setError('Project not found')
     }
-  }, [projectId, projects, selectedProject, setSelectedProject, router])
+  }, [projectId, projects, selectedProject, dataReady, error])
 
   // Redirect if not authenticated
   useEffect(() => {
-    if (!loading && !user) {
+    if (mounted && !loading && !user) {
       router.push('/')
     }
-  }, [user, loading, router])
+  }, [mounted, user, loading, router])
 
   const handleProjectCreated = useCallback((newProject: any) => {
     setProjects([...projects, newProject])
@@ -151,7 +151,8 @@ export default function ProjectDetailPage() {
     }
   }, [checkSystemHealth])
 
-  if (loading || loadingData) {
+  // Show loading only if not mounted yet or initial loading
+  if (!mounted || loading || loadingData) {
     return (
       <div className="min-h-screen bg-dark-bg text-white flex items-center justify-center">
         <motion.div
@@ -169,9 +170,9 @@ export default function ProjectDetailPage() {
   if (error && error.includes('not found')) {
     return (
       <>
-        {/* <Head>
+        <Head>
           <title>Project Not Found - SecureFlow AI</title>
-        </Head> */}
+        </Head>
         <div className="min-h-screen bg-dark-bg text-white">
           <div className="border-b border-dark-border bg-dark-card/50 backdrop-blur-sm">
             <div className="max-w-7xl mx-auto px-6 py-4">
@@ -196,7 +197,7 @@ export default function ProjectDetailPage() {
               className="text-center"
             >
               <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-6" />
-              {/* <h2 className="text-3xl font-bold mb-4">Project Not Found</h2> */}
+              <h2 className="text-3xl font-bold mb-4">Project Not Found</h2>
               <p className="text-gray-400 mb-8">
                 The project you're looking for doesn't exist or you don't have access to it.
               </p>
