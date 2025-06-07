@@ -23,16 +23,6 @@ const PORT = process.env.PORT || 3001;
 // Trust proxy for Vercel deployment
 app.set('trust proxy', 1);
 
-// Connect to MongoDB
-(async () => {
-  try {
-    await connectDB();
-    logger.info('Database connected successfully');
-  } catch (error) {
-    logger.error('Failed to connect to database:', error);
-  }
-})();
-
 // Rate limiting with proper configuration for serverless
 const limiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000'), // 15 minutes
@@ -54,6 +44,17 @@ app.use(limiter);
 app.use(morgan('combined'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+
+// Database connection middleware for serverless
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (error) {
+    logger.error('Database connection failed:', error);
+    res.status(500).json({ error: 'Database connection failed' });
+  }
+});
 
 // Health check
 app.get('/health', (req, res) => {

@@ -28,8 +28,8 @@ declare global {
   }
 }
 
-const GoogleSignInButton: React.FC<GoogleSignInButtonProps> = ({ 
-  onSuccess, 
+const GoogleSignInButton: React.FC<GoogleSignInButtonProps> = ({
+  onSuccess,
   onError,
   text = 'signin_with',
   theme = 'outline'
@@ -72,7 +72,7 @@ const GoogleSignInButton: React.FC<GoogleSignInButtonProps> = ({
   const handleCredentialResponse = async (response: GoogleCredentialResponse) => {
     try {
       const result = await authAPI.googleSignIn(response.credential);
-      
+
       // Store JWT token in cookie
       Cookies.set('auth_token', result.token, {
         expires: 7, // 7 days
@@ -81,7 +81,9 @@ const GoogleSignInButton: React.FC<GoogleSignInButtonProps> = ({
       });
 
       console.log('Google sign-in successful:', result.user);
-      onSuccess();
+
+      // Redirect to dashboard
+      window.location.href = '/dashboard';
     } catch (error: any) {
       console.error('Google sign-in error:', error);
       const errorMessage = error.response?.data?.error || 'Google sign-in failed';

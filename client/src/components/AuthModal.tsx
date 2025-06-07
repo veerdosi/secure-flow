@@ -63,8 +63,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess, defau
 
       console.log(`${isLogin ? 'Login' : 'Registration'} successful:`, response.user);
 
-      onSuccess();
-      onClose();
+      // Redirect to dashboard
+      window.location.href = '/dashboard';
     } catch (error: any) {
       console.error('Auth error:', error);
       const errorMessage = error.response?.data?.error ||
