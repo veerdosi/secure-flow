@@ -11,14 +11,6 @@ import { authMiddleware, AuthenticatedRequest } from '../middleware/auth';
 
 const router = Router();
 
-interface AuthenticatedRequest extends Request {
-  user?: {
-    uid: string;
-    email: string;
-    role: string;
-  };
-}
-
 // Start new analysis
 router.post('/start',
   [
@@ -342,7 +334,7 @@ async function processAnalysis(analysisId: string, projectId: string, commitHash
             analysisId,
             newVulns: vulnerabilities.length,
             totalVulns: allVulnerabilities.length,
-            severities: vulnerabilities.reduce((acc: any, v) => {
+            severities: vulnerabilities.reduce((acc: Record<string, number>, v: any) => {
               acc[v.severity] = (acc[v.severity] || 0) + 1;
               return acc;
             }, {})

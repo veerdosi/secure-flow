@@ -1,4 +1,4 @@
-import cron from 'node-cron';
+import * as cron from 'node-cron';
 import { Project, Analysis, User } from '../models';
 import { processAnalysis } from '../routes/analysis';
 import logger from '../utils/logger';
@@ -31,14 +31,22 @@ class AnalysisScheduler {
     this.dailyTask = cron.schedule('0 2 * * *', async () => {
       logger.info('🔄 Running daily scheduled analyses...');
       await this.runScheduledAnalyses('DAILY');
-    }, { scheduled: true, timezone: 'UTC' });
+    });
+    
+    if (this.dailyTask) {
+      this.dailyTask.start();
+    }
   }
 
   private scheduleWeekly(): void {
     this.weeklyTask = cron.schedule('0 1 * * 0', async () => {
       logger.info('🔄 Running weekly scheduled analyses...');
       await this.runScheduledAnalyses('WEEKLY');
-    }, { scheduled: true, timezone: 'UTC' });
+    });
+    
+    if (this.weeklyTask) {
+      this.weeklyTask.start();
+    }
   }
 
   private async runScheduledAnalyses(frequency: 'DAILY' | 'WEEKLY'): Promise<void> {
