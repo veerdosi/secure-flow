@@ -181,7 +181,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({
             <>
               {/* Backdrop */}
               <div
-                className="fixed inset-0 z-[9998]"
+                className="fixed inset-0 z-[10010]"
                 onClick={() => setIsOpen(false)}
               />
 
@@ -191,7 +191,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -10, scale: 0.95 }}
                 transition={{ duration: 0.15 }}
-                className="absolute right-0 top-full mt-2 w-72 bg-dark-card border border-dark-border rounded-xl shadow-2xl z-[9999] overflow-hidden"
+                className="absolute right-0 top-full mt-2 w-72 bg-dark-card border border-dark-border rounded-xl shadow-2xl z-[10011] overflow-hidden"
               >
                 {/* User Info */}
                 <div className="p-4 border-b border-dark-border">

@@ -11,10 +11,16 @@ import { useRouter } from 'next/router'
 import { Project } from '@/types'
 import { useAppState } from '@/hooks/useAppState'
 
-export default function ProjectDetailPage() {
+interface ProjectDetailPageProps {
+  projectId?: string;
+}
+
+export default function ProjectDetailPage({ projectId: propProjectId }: ProjectDetailPageProps) {
   const { user, loading } = useUser()
   const router = useRouter()
-  const { id: projectId } = router.query
+  const { id: routerProjectId } = router.query
+  // Use prop projectId if available (from getServerSideProps), otherwise use router query
+  const projectId = propProjectId || routerProjectId
   const { 
     projects, 
     selectedProject, 
@@ -174,7 +180,7 @@ export default function ProjectDetailPage() {
           <title>Project Not Found - SecureFlow AI</title>
         </Head>
         <div className="min-h-screen bg-dark-bg text-white">
-          <div className="border-b border-dark-border bg-dark-card/50 backdrop-blur-sm">
+          <div className="border-b border-dark-border bg-dark-card/50 backdrop-blur-sm relative z-[10000]">
             <div className="max-w-7xl mx-auto px-6 py-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
@@ -223,7 +229,7 @@ export default function ProjectDetailPage() {
           <title>SecureFlow AI - System Configuration</title>
         </Head>
         <div className="min-h-screen bg-dark-bg text-white">
-          <div className="border-b border-dark-border bg-dark-card/50 backdrop-blur-sm">
+          <div className="border-b border-dark-border bg-dark-card/50 backdrop-blur-sm relative z-[10000]">
             <div className="max-w-7xl mx-auto px-6 py-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
@@ -309,7 +315,7 @@ export default function ProjectDetailPage() {
           <title>{`${selectedProject.name} - SecureFlow AI`}</title>
         </Head>
         <div className="min-h-screen bg-dark-bg text-white">
-          <div className="border-b border-dark-border bg-dark-card/50 backdrop-blur-sm">
+          <div className="border-b border-dark-border bg-dark-card/50 backdrop-blur-sm relative z-[10000]">
             <div className="max-w-7xl mx-auto px-6 py-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
@@ -395,4 +401,16 @@ export default function ProjectDetailPage() {
       />
     </div>
   )
+}
+
+// This ensures the page is server-side rendered and won't 404 on refresh
+export async function getServerSideProps(context: any) {
+  const { id } = context.params;
+  
+  // Just return the projectId as a prop - the component will handle loading
+  return {
+    props: {
+      projectId: id
+    }
+  };
 }

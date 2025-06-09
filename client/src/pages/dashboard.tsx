@@ -160,7 +160,7 @@ export default function DashboardPage() {
           <title>SecureFlow AI - System Configuration</title>
         </Head>
         <div className="min-h-screen bg-dark-bg text-white">
-          <div className="border-b border-dark-border bg-dark-card/50 backdrop-blur-sm">
+          <div className="border-b border-dark-border bg-dark-card/50 backdrop-blur-sm relative z-[10000]">
             <div className="max-w-7xl mx-auto px-6 py-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
@@ -321,7 +321,7 @@ export default function DashboardPage() {
           <title>Select Project - SecureFlow AI</title>
         </Head>
         <div className="min-h-screen bg-dark-bg text-white">
-          <div className="border-b border-dark-border bg-dark-card/50 backdrop-blur-sm">
+          <div className="border-b border-dark-border bg-dark-card/50 backdrop-blur-sm relative z-[10000]">
             <div className="max-w-7xl mx-auto px-6 py-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
@@ -389,7 +389,7 @@ export default function DashboardPage() {
         <title>SecureFlow AI - Add Your First Project</title>
       </Head>
       <div className="min-h-screen bg-dark-bg text-white">
-        <div className="border-b border-dark-border bg-dark-card/50 backdrop-blur-sm">
+        <div className="border-b border-dark-border bg-dark-card/50 backdrop-blur-sm relative z-[10000]">
           <div className="max-w-7xl mx-auto px-6 py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">

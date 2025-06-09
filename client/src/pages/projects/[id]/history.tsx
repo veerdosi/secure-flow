@@ -520,3 +520,13 @@ export default function ProjectHistoryPage() {
     </>
   )
 }
+
+export async function getServerSideProps(context: any) {
+  const { id } = context.params;
+  
+  return {
+    props: {
+      projectId: id
+    }
+  };
+}
