@@ -363,8 +363,8 @@ class AIAnalysisService {
       
       logger.info(`✅ Generated prioritized remediation steps`, {
         totalSteps: enhancedSteps.length,
-        automatable: enhancedSteps.filter(s => s.automationPossible).length,
-        effortBreakdown: enhancedSteps.reduce((acc: any, s) => {
+        automatable: enhancedSteps.filter((s: any) => s.automationPossible).length,
+        effortBreakdown: enhancedSteps.reduce((acc: any, s: any) => {
           acc[s.estimatedEffort] = (acc[s.estimatedEffort] || 0) + 1;
           return acc;
         }, {})
@@ -894,9 +894,9 @@ OUTPUT FORMAT (Valid JSON):
 
   private async performIacAnalysis(files: string[]): Promise<any> {
     return {
-      terraformFiles: files.filter(f => f.endsWith('.tf')),
-      cloudFormationFiles: files.filter(f => f.includes('cloudformation')),
-      kubernetesFiles: files.filter(f => f.includes('k8s') || f.endsWith('.yaml'))
+      terraformFiles: files.filter((f: string) => f.endsWith('.tf')),
+      cloudFormationFiles: files.filter((f: string) => f.includes('cloudformation')),
+      kubernetesFiles: files.filter((f: string) => f.includes('k8s') || f.endsWith('.yaml'))
     };
   }
 
@@ -929,9 +929,9 @@ OUTPUT FORMAT (Valid JSON):
 
   private analyzeDataFlows(files: string[], structure: any): any {
     return {
-      databaseConnections: files.filter(f => f.includes('db') || f.includes('model')).length,
-      apiEndpoints: files.filter(f => f.includes('route') || f.includes('controller')).length,
-      externalServices: files.filter(f => f.includes('service') || f.includes('client')).length
+      databaseConnections: files.filter((f: string) => f.includes('db') || f.includes('model')).length,
+      apiEndpoints: files.filter((f: string) => f.includes('route') || f.includes('controller')).length,
+      externalServices: files.filter((f: string) => f.includes('service') || f.includes('client')).length
     };
   }
 
