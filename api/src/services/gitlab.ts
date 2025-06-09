@@ -8,6 +8,7 @@ interface GitLabFile {
   type: 'blob' | 'tree';
   path: string;
   mode: string;
+  size?: number;
 }
 
 interface GitLabProject {
