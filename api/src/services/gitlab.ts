@@ -143,8 +143,21 @@ class GitLabService {
         ref,
         error: error.message,
         status: error.response?.status,
-        statusText: error.response?.statusText
+        statusText: error.response?.statusText,
+        gitlabError: error.response?.data,
+        url: error.config?.url
       });
+
+      if (error.response?.status === 404) {
+        throw new Error(`GitLab project ${projectId} not found or branch '${ref}' doesn't exist. Check project ID and branch name.`);
+      }
+      if (error.response?.status === 401) {
+        throw new Error('GitLab API token is invalid or expired');
+      }
+      if (error.response?.status === 403) {
+        throw new Error('Access denied to GitLab project. Check token permissions.');
+      }
+
       throw new Error(`Failed to get project files: ${error.message}`);
     }
   }

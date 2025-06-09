@@ -7,6 +7,7 @@ import remediationService from '../services/remediationService';
 import AnalysisScheduler from '../services/analysisScheduler';
 import logger from '../utils/logger';
 import jwt from 'jsonwebtoken';
+import { authMiddleware, AuthenticatedRequest } from '../middleware/auth';
 
 const router = Router();
 
@@ -81,8 +82,9 @@ router.post('/start',
 
 // Get analysis status and results
 router.get('/:analysisId',
+  authMiddleware,
   param('analysisId').notEmpty(),
-  async (req: Request, res: Response) => {
+  async (req: AuthenticatedRequest, res: Response) => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
@@ -107,8 +109,9 @@ router.get('/:analysisId',
 
 // Get project analyses
 router.get('/project/:projectId',
+  authMiddleware,
   param('projectId').notEmpty(),
-  async (req: Request, res: Response) => {
+  async (req: AuthenticatedRequest, res: Response) => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
@@ -132,8 +135,9 @@ router.get('/project/:projectId',
 
 // Get analysis history/trends for a project
 router.get('/project/:projectId/history',
+  authMiddleware,
   param('projectId').notEmpty(),
-  async (req: Request, res: Response) => {
+  async (req: AuthenticatedRequest, res: Response) => {
     try {
       const { projectId } = req.params;
       const days = parseInt(req.query.days as string) || 30;
@@ -223,16 +227,25 @@ async function processAnalysis(analysisId: string, projectId: string, commitHash
   });
 
   try {
-    // Get analysis to get userId
-    const analysis = await Analysis.findById(analysisId);
-    if (!analysis) {
+    // Get project to get the actual GitLab project ID
+    const project = await Analysis.findById(analysisId).populate('projectId');
+    if (!project) {
       throw new Error('Analysis not found');
+    }
+
+    // Get the actual project document to get gitlabProjectId
+    const { Project } = require('../models');
+    const projectDoc = await Project.findById(projectId);
+    if (!projectDoc) {
+      throw new Error('Project not found');
     }
 
     const userId = analysis.userId;
     if (!userId) {
       throw new Error('User ID not found in analysis data');
     }
+
+    const actualGitlabProjectId = projectDoc.gitlabProjectId;
 
     // Get previous analysis for comparison
     const previousAnalysis = await Analysis.findOne({
@@ -250,15 +263,16 @@ async function processAnalysis(analysisId: string, projectId: string, commitHash
       previousAnalysisId: previousAnalysis?._id
     });
 
-    // Get project files
+    // Get project files using the actual GitLab project ID
     logger.info(`📁 Fetching project files from GitLab`, {
       analysisId,
-      projectId,
+      mongoProjectId: projectId,
+      gitlabProjectId: actualGitlabProjectId,
       commitHash: commitHash || 'main',
       userId
     });
 
-    const files = await gitlabService.getProjectFiles(projectId, userId, commitHash || 'main');
+    const files = await gitlabService.getProjectFiles(actualGitlabProjectId, userId, commitHash || 'main');
     
     logger.info(`📁 Retrieved ${files.length} files from GitLab`, {
       analysisId,
@@ -296,7 +310,7 @@ async function processAnalysis(analysisId: string, projectId: string, commitHash
 
       try {
         const startTime = Date.now();
-        const content = await gitlabService.getFileContent(projectId, userId, file.path, commitHash || 'main');
+        const content = await gitlabService.getFileContent(actualGitlabProjectId, userId, file.path, commitHash || 'main');
         
         logger.info(`📥 Retrieved file content for ${file.path}`, {
           analysisId,
