@@ -61,7 +61,7 @@ class AIAnalysisService {
     try {
       this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
       this.model = this.genAI.getGenerativeModel({
-        model: process.env.GEMINI_MODEL || 'gemini-pro',
+        model: process.env.GEMINI_MODEL || 'gemini-1.5-flash',
         generationConfig: {
           temperature: 0.1, // Lower temperature for more consistent security analysis
           topK: 20,
@@ -82,13 +82,34 @@ class AIAnalysisService {
    */
   async analyzeCode(codeContent: string, filePath: string, context?: FileAnalysisContext): Promise<any> {
     logger.info(`🔍 Starting AI analysis for ${filePath}`, {
-      fileSize: codeContent.length,
+      fileSize: typeof codeContent === 'string' ? codeContent.length : 'non-string',
+      contentType: typeof codeContent,
       language: this.detectLanguage(filePath),
       hasContext: !!context
     });
 
     if (!this.model) {
       throw new Error('Gemini AI model not initialized. Check GEMINI_API_KEY configuration.');
+    }
+
+    // Ensure codeContent is a string
+    if (typeof codeContent !== 'string') {
+      logger.warn(`⚠️ Non-string content received for ${filePath}, converting to string`);
+      codeContent = String(codeContent);
+    }
+
+    // Skip analysis for very large files
+    if (codeContent.length > 100000) {
+      logger.warn(`⚠️ File ${filePath} is too large (${codeContent.length} chars), skipping analysis`);
+      return {
+        vulnerabilities: [],
+        securityScore: 50,
+        threatLevel: 'UNKNOWN',
+        aiAnalysis: 'File too large for analysis',
+        analyzedFile: filePath,
+        analysisTimestamp: new Date().toISOString(),
+        skipped: true
+      };
     }
 
     const cacheKey = this.generateCacheKey('analyze', codeContent, filePath);
