@@ -7,6 +7,7 @@ import remediationService from '../services/remediationService';
 import AnalysisScheduler from '../services/analysisScheduler';
 import logger from '../utils/logger';
 import jwt from 'jsonwebtoken';
+import { authMiddleware, AuthenticatedRequest } from '../middleware/auth';
 
 const router = Router();
 
@@ -81,8 +82,9 @@ router.post('/start',
 
 // Get analysis status and results
 router.get('/:analysisId',
+  authMiddleware,
   param('analysisId').notEmpty(),
-  async (req: Request, res: Response) => {
+  async (req: AuthenticatedRequest, res: Response) => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
@@ -107,8 +109,9 @@ router.get('/:analysisId',
 
 // Get project analyses
 router.get('/project/:projectId',
+  authMiddleware,
   param('projectId').notEmpty(),
-  async (req: Request, res: Response) => {
+  async (req: AuthenticatedRequest, res: Response) => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
@@ -132,8 +135,9 @@ router.get('/project/:projectId',
 
 // Get analysis history/trends for a project
 router.get('/project/:projectId/history',
+  authMiddleware,
   param('projectId').notEmpty(),
-  async (req: Request, res: Response) => {
+  async (req: AuthenticatedRequest, res: Response) => {
     try {
       const { projectId } = req.params;
       const days = parseInt(req.query.days as string) || 30;
