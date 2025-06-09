@@ -29,11 +29,9 @@ export const authMiddleware = async (
     }
 
     const token = authHeader.substring(7);
-    console.log('Auth middleware - token length:', token.length);
 
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET || 'dev-secret') as any;
-      console.log('Auth middleware - token decoded successfully, userId:', decoded.userId);
 
       // Get user from database
       const user = await User.findById(decoded.userId).select('-password');
@@ -43,8 +41,6 @@ export const authMiddleware = async (
           error: 'User not found'
         });
       }
-
-      console.log('Auth middleware - user found:', user.email);
       req.user = user;
       next();
     } catch (jwtError) {
