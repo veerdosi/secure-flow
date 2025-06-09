@@ -55,6 +55,44 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({
 
   const [webhookSecret, setWebhookSecret] = useState('');
   const [webhookUrl, setWebhookUrl] = useState('');
+  const [detectingBranch, setDetectingBranch] = useState(false);
+
+  // Function to detect default branch from GitLab
+  const detectDefaultBranch = async (projectId: string) => {
+    if (!projectId.trim()) return;
+    
+    setDetectingBranch(true);
+    try {
+      // First try with GitLab API if access token is available
+      if (user?.gitlabSettings?.accessToken) {
+        const response = await fetch(`https://gitlab.com/api/v4/projects/${projectId}`, {
+          headers: {
+            'Authorization': `Bearer ${user.gitlabSettings.accessToken}`
+          }
+        });
+        
+        if (response.ok) {
+          const project = await response.json();
+          const defaultBranch = project.default_branch;
+          if (defaultBranch) {
+            setFormData(prev => ({ ...prev, branch: defaultBranch }));
+            return;
+          }
+        }
+      }
+      
+      // Fallback: try to infer from repository URL or use smart defaults
+      // Most modern repos use 'main', older ones use 'master'
+      // We'll default to 'main' but provide easy buttons for both
+      if (formData.branch === 'main') {
+        // Keep main as default since it's more common in new repos
+      }
+    } catch (error) {
+      console.log('Could not detect default branch, using main as default');
+    } finally {
+      setDetectingBranch(false);
+    }
+  };
 
   useEffect(() => {
     if (triggerOpen) {
@@ -88,6 +126,11 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     setError('');
+    
+    // Auto-detect default branch when GitLab project ID changes
+    if (field === 'gitlabProjectId' && value.trim()) {
+      detectDefaultBranch(value.trim());
+    }
   };
 
   const handleScanTypeToggle = (scanType: string) => {
@@ -336,15 +379,34 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({
 
                     <div>
                       <label className="block text-sm font-medium text-gray-300 mb-2">
-                        Default Branch
+                        Default Branch {detectingBranch && <span className="text-cyber-blue text-xs">(detecting...)</span>}
                       </label>
-                      <input
-                        type="text"
-                        value={formData.branch}
-                        onChange={(e) => handleInputChange('branch', e.target.value)}
-                        className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-cyber-blue focus:border-transparent text-white"
-                        placeholder="main"
-                      />
+                      <div className="flex space-x-2">
+                        <input
+                          type="text"
+                          value={formData.branch}
+                          onChange={(e) => handleInputChange('branch', e.target.value)}
+                          className="flex-1 px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-cyber-blue focus:border-transparent text-white"
+                          placeholder="main"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleInputChange('branch', 'main')}
+                          className={`px-3 py-1 text-xs rounded ${formData.branch === 'main' ? 'bg-cyber-blue text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
+                        >
+                          main
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleInputChange('branch', 'master')}
+                          className={`px-3 py-1 text-xs rounded ${formData.branch === 'master' ? 'bg-cyber-blue text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
+                        >
+                          master
+                        </button>
+                      </div>
+                      <p className="text-xs text-gray-400 mt-1">
+                        Will auto-detect when you enter a GitLab Project ID
+                      </p>
                     </div>
                   </div>
 
