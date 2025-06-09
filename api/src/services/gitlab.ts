@@ -128,7 +128,7 @@ class GitLabService {
         projectId,
         totalFiles: response.data.length,
         codeFiles: filteredFiles.length,
-        fileTypes: filteredFiles.reduce((acc: any, f) => {
+        fileTypes: filteredFiles.reduce((acc: Record<string, number>, f: GitLabFile) => {
           const ext = f.name.split('.').pop() || 'unknown';
           acc[ext] = (acc[ext] || 0) + 1;
           return acc;
@@ -213,7 +213,7 @@ class GitLabService {
       const client = this.createGitLabClient(config.baseUrl, config.apiToken);
 
       const response = await client.get(`/projects/${projectId}/repository/branches`);
-      return response.data.map((branch: any) => branch.name);
+      return response.data.map((branch: { name: string }) => branch.name);
     } catch (error: any) {
       logger.error('Failed to get GitLab branches:', error);
       throw new Error(`Failed to get branches: ${error.message}`);
@@ -264,7 +264,7 @@ class GitLabService {
       if (error.response?.status === 422) {
         // Webhook might already exist
         const existingHooks = await this.getWebhooks(projectId, userId);
-        const existingHook = existingHooks.find((hook: any) => hook.url === url);
+        const existingHook = existingHooks.find((hook: { url: string; id: number }) => hook.url === url);
         if (existingHook) {
           logger.info(`Using existing GitLab webhook for project ${projectId}: ${existingHook.id}`);
           return existingHook.id.toString();
@@ -370,7 +370,17 @@ class GitLabService {
         }
       });
 
-      return response.data.map((project: any) => ({
+      return response.data.map((project: {
+        id: number;
+        name: string;
+        path: string;
+        description: string;
+        web_url: string;
+        default_branch: string;
+        last_activity_at: string;
+        visibility: string;
+        namespace: any;
+      }) => ({
         id: project.id,
         name: project.name,
         path: project.path,
@@ -482,6 +492,126 @@ class GitLabService {
     } catch (error: any) {
       logger.error('Failed to process GitLab webhook event:', error);
       throw new Error(`Failed to process webhook event: ${error.message}`);
+    }
+  }
+
+  /**
+   * Create a new branch from a base branch
+   */
+  async createBranch(projectId: string, userId: string, branchName: string, baseBranch: string = 'main'): Promise<any> {
+    try {
+      const config = await this.getGitLabConfig(userId);
+      const client = this.createGitLabClient(config.baseUrl, config.apiToken);
+
+      const response = await client.post(`/projects/${projectId}/repository/branches`, {
+        branch: branchName,
+        ref: baseBranch
+      });
+
+      logger.info(`✅ Branch created: ${branchName} from ${baseBranch}`, {
+        projectId,
+        branchName,
+        baseBranch
+      });
+
+      return response.data;
+    } catch (error: any) {
+      logger.error(`❌ Failed to create branch ${branchName}`, {
+        projectId,
+        branchName,
+        baseBranch,
+        error: error.message
+      });
+      throw new Error(`Failed to create branch: ${error.message}`);
+    }
+  }
+
+  /**
+   * Commit file changes to a branch
+   */
+  async commitFileChange(
+    projectId: string, 
+    userId: string, 
+    filePath: string, 
+    content: string, 
+    commitMessage: string, 
+    branch: string
+  ): Promise<any> {
+    try {
+      const config = await this.getGitLabConfig(userId);
+      const client = this.createGitLabClient(config.baseUrl, config.apiToken);
+
+      const response = await client.post(`/projects/${projectId}/repository/commits`, {
+        branch,
+        commit_message: commitMessage,
+        actions: [
+          {
+            action: 'update',
+            file_path: filePath,
+            content: content
+          }
+        ]
+      });
+
+      logger.info(`✅ File committed: ${filePath}`, {
+        projectId,
+        filePath,
+        branch,
+        commitId: response.data.id
+      });
+
+      return response.data;
+    } catch (error: any) {
+      logger.error(`❌ Failed to commit file ${filePath}`, {
+        projectId,
+        filePath,
+        branch,
+        error: error.message
+      });
+      throw new Error(`Failed to commit file: ${error.message}`);
+    }
+  }
+
+  /**
+   * Create a merge request
+   */
+  async createMergeRequest(
+    projectId: string,
+    userId: string,
+    sourceBranch: string,
+    targetBranch: string,
+    title: string,
+    description: string
+  ): Promise<any> {
+    try {
+      const config = await this.getGitLabConfig(userId);
+      const client = this.createGitLabClient(config.baseUrl, config.apiToken);
+
+      const response = await client.post(`/projects/${projectId}/merge_requests`, {
+        source_branch: sourceBranch,
+        target_branch: targetBranch,
+        title,
+        description,
+        remove_source_branch: true
+      });
+
+      logger.info(`✅ Merge request created: ${title}`, {
+        projectId,
+        sourceBranch,
+        targetBranch,
+        mergeRequestId: response.data.iid
+      });
+
+      return response.data;
+    } catch (error: any) {
+      logger.error(`❌ Failed to create merge request`, {
+        projectId,
+        sourceBranch,
+        targetBranch,
+        title,
+        error: error.message
+      });
+      throw new Error(`Failed to create merge request: ${error.message}`);
     }
   }
 }
