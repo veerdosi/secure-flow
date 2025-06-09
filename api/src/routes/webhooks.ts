@@ -337,9 +337,8 @@ async function processAnalysisInBackground(analysisId: string, projectId: string
 
     // Create notification for analysis failure
     if (project) {
-      const analysis = await Analysis.findById(analysisId);
       await notificationService.createAnalysisFailedNotification(
-        analysis?.userId || project.createdBy,
+        analysis.userId,
         projectId,
         analysisId,
         projectName,

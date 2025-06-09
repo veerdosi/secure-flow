@@ -38,7 +38,7 @@ class NotificationService {
     }
 
     try {
-      this.emailTransporter = nodemailer.createTransport({
+      this.emailTransporter = nodemailer.createTransporter({
         host: process.env.SMTP_HOST,
         port: parseInt(process.env.SMTP_PORT || '587'),
         secure: process.env.SMTP_SECURE === 'true',
@@ -49,7 +49,7 @@ class NotificationService {
       });
 
       // Verify connection
-      this.emailTransporter?.verify((error) => {
+      this.emailTransporter.verify((error) => {
         if (error) {
           logger.error('SMTP connection failed:', error);
           this.emailTransporter = null;

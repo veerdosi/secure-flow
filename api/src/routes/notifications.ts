@@ -1,13 +1,11 @@
-import { Router } from 'express';
-import { Response, NextFunction } from 'express';
-import { AuthenticatedRequest } from '../middleware/auth';
+import { Router, Request, Response } from 'express';
 import { Notification } from '../models';
 import logger from '../utils/logger';
 
 const router = Router();
 
 // Get notifications for the authenticated user
-router.get('/', async (req: AuthenticatedRequest, res: Response) => {
+router.get('/', async (req: Request, res: Response) => {
   try {
     const userId = req.user?.id;
     if (!userId) {
@@ -44,7 +42,7 @@ router.get('/', async (req: AuthenticatedRequest, res: Response) => {
 });
 
 // Mark notifications as read
-router.patch('/read', async (req: AuthenticatedRequest, res: Response) => {
+router.patch('/read', async (req: Request, res: Response) => {
   try {
     const userId = req.user?.id;
     if (!userId) {
@@ -76,7 +74,7 @@ router.patch('/read', async (req: AuthenticatedRequest, res: Response) => {
 });
 
 // Get notification stats
-router.get('/stats', async (req: AuthenticatedRequest, res: Response) => {
+router.get('/stats', async (req: Request, res: Response) => {
   try {
     const userId = req.user?.id;
     if (!userId) {
