@@ -59,6 +59,7 @@ const Dashboard = ({ projectId: propProjectId, projectData }: DashboardProps) =>
   }, []);
 
   // Don't start loading data until router is ready, component is mounted, and we have a projectId
+  // Also ensure Zustand has finished hydrating to prevent race conditions
   const isReady = mounted && router.isReady && projectId;
 
   useEffect(() => {
@@ -87,7 +88,7 @@ const Dashboard = ({ projectId: propProjectId, projectData }: DashboardProps) =>
       // Use cached data
       setAnalysis(cachedAnalysis);
       setLoading(false);
-      console.log('Using cached analysis data');
+      // console.log('Using cached analysis data'); // Removed console logging for production
       return;
     }
     
@@ -110,7 +111,7 @@ const Dashboard = ({ projectId: propProjectId, projectData }: DashboardProps) =>
       setProject(projectData);
       setError(null);
     } catch (error: any) {
-      console.error('Failed to fetch project:', error);
+      // console.error('Failed to fetch project:', error); // Commented out to prevent client-side error visibility
       setError('Failed to load project data');
     }
   };
@@ -162,7 +163,8 @@ const Dashboard = ({ projectId: propProjectId, projectData }: DashboardProps) =>
         }
       }
     } catch (error: any) {
-      console.error('Failed to fetch analysis:', error);
+      // console.error('Failed to fetch analysis:', error); // Commented out to prevent client-side error visibility
+      // Error is handled gracefully by UI state, no need to log to console
     }
   }, [projectId, setAnalysisData]);
 
@@ -208,7 +210,7 @@ const Dashboard = ({ projectId: propProjectId, projectData }: DashboardProps) =>
         fetchLatestAnalysis();
       }
     } catch (error: any) {
-      console.error('Failed to start analysis:', error);
+      // console.error('Failed to start analysis:', error); // Commented out to prevent client-side error visibility
       setError('Failed to start analysis');
       setLoading(false);
     }

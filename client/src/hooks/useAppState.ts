@@ -97,7 +97,7 @@ export const useAppState = create<AppState>()(
         if (typeof window !== 'undefined') {
           return localStorage
         }
-        // Fallback for SSR
+        // Fallback for SSR - return null storage to prevent hydration issues
         return {
           getItem: () => null,
           setItem: () => {},
@@ -111,7 +111,13 @@ export const useAppState = create<AppState>()(
         selectedProject: state.selectedProject,
         analysisResults: state.analysisResults
       }),
-      onRehydrateStorage: () => (state) => {
+      onRehydrateStorage: () => (state, error) => {
+        // Enhanced error handling for hydration
+        if (error) {
+          // console.error('Failed to rehydrate state:', error); // Commented out to prevent client-side error visibility
+          // Reset to initial state if hydration fails
+          state?.clearState?.()
+        }
         state?.setHasHydrated(true)
       }
     }
