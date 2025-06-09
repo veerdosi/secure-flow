@@ -14,18 +14,14 @@ export const authMiddleware = async (
   next: NextFunction
 ) => {
   try {
-    // Ensure database connection is established
-    if (mongoose.connection.readyState === 0) {
-      console.log('Auth middleware - database not connected, connecting...');
-      await connectDB();
-    }
+    // Ensure database connection is established - critical for serverless
+    await connectDB();
 
     const authHeader = req.headers.authorization;
     
     console.log('Auth middleware - headers:', {
       authorization: authHeader ? 'Bearer ***' : 'missing',
-      userAgent: req.headers['user-agent'],
-      origin: req.headers.origin
+      dbState: mongoose.connection.readyState
     });
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
