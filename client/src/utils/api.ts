@@ -16,7 +16,7 @@ const getAPIBaseURL = () => {
     if (hostname.includes('vercel.app') || 
         hostname.includes('netlify.app') || 
         !hostname.includes('localhost')) {
-      return `${protocol}//${hostname}`;
+      return process.env.NEXT_PUBLIC_API_URL || `${protocol}//${hostname}`;
     }
     
     // Local development - use API port

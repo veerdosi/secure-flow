@@ -1,1 +1,4 @@
-{"builds": [{"src": "client/package.json", "use": "@vercel/next"}, {"src": "api/src/index.ts", "use": "@vercel/node", "config": {"maxDuration": 30}}], "routes": [{"src": "/api/(.*)", "dest": "/api/src/index.ts"}, {"src": "/(.*)", "dest": "/client/$1"}]}
+{
+  "cleanUrls": true,
+  "trailingSlash": false
+}

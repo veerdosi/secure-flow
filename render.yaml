@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: secure-flow-api
+    env: node
+    rootDir: api
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: MONGODB_URI
+        sync: false  # Set this in Render dashboard
+      - key: JWT_SECRET
+        sync: false  # Set this in Render dashboard
+      - key: OPENAI_API_KEY  # or whatever AI service you're using
+        sync: false
+      - key: CORS_ORIGIN
+        value: https://your-vercel-app.vercel.app

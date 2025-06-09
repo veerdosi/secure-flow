@@ -5,6 +5,9 @@ const nextConfig = {
   images: {
     domains: ['localhost'],
   },
+  env: {
+    API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001',
+  },
 webpack: (config) => {
     config.resolve.fallback = {
       ...config.resolve.fallback,
