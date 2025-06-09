@@ -85,26 +85,6 @@ app.use(morgan('combined'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Initialize database connection once for serverless functions
-let dbInitialized = false;
-const initializeDB = async () => {
-  if (!dbInitialized) {
-    try {
-      await connectDB();
-      dbInitialized = true;
-      logger.info('Database connection initialized');
-    } catch (error) {
-      logger.error('Database initialization failed:', error);
-      throw error;
-    }
-  }
-};
-
-// Initialize database connection on startup
-initializeDB().catch(error => {
-  logger.error('Failed to initialize database on startup:', error);
-});
-
 // Health check
 app.get('/health', (req, res) => {
   res.json({

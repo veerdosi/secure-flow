@@ -227,16 +227,25 @@ async function processAnalysis(analysisId: string, projectId: string, commitHash
   });
 
   try {
-    // Get analysis to get userId
-    const analysis = await Analysis.findById(analysisId);
-    if (!analysis) {
+    // Get project to get the actual GitLab project ID
+    const project = await Analysis.findById(analysisId).populate('projectId');
+    if (!project) {
       throw new Error('Analysis not found');
+    }
+
+    // Get the actual project document to get gitlabProjectId
+    const { Project } = require('../models');
+    const projectDoc = await Project.findById(projectId);
+    if (!projectDoc) {
+      throw new Error('Project not found');
     }
 
     const userId = analysis.userId;
     if (!userId) {
       throw new Error('User ID not found in analysis data');
     }
+
+    const actualGitlabProjectId = projectDoc.gitlabProjectId;
 
     // Get previous analysis for comparison
     const previousAnalysis = await Analysis.findOne({
@@ -254,15 +263,16 @@ async function processAnalysis(analysisId: string, projectId: string, commitHash
       previousAnalysisId: previousAnalysis?._id
     });
 
-    // Get project files
+    // Get project files using the actual GitLab project ID
     logger.info(`📁 Fetching project files from GitLab`, {
       analysisId,
-      projectId,
+      mongoProjectId: projectId,
+      gitlabProjectId: actualGitlabProjectId,
       commitHash: commitHash || 'main',
       userId
     });
 
-    const files = await gitlabService.getProjectFiles(projectId, userId, commitHash || 'main');
+    const files = await gitlabService.getProjectFiles(actualGitlabProjectId, userId, commitHash || 'main');
     
     logger.info(`📁 Retrieved ${files.length} files from GitLab`, {
       analysisId,
@@ -300,7 +310,7 @@ async function processAnalysis(analysisId: string, projectId: string, commitHash
 
       try {
         const startTime = Date.now();
-        const content = await gitlabService.getFileContent(projectId, userId, file.path, commitHash || 'main');
+        const content = await gitlabService.getFileContent(actualGitlabProjectId, userId, file.path, commitHash || 'main');
         
         logger.info(`📥 Retrieved file content for ${file.path}`, {
           analysisId,
