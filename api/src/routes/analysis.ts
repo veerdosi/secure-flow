@@ -227,10 +227,15 @@ async function processAnalysis(analysisId: string, projectId: string, commitHash
   });
 
   try {
-    // Get project to get the actual GitLab project ID
-    const project = await Analysis.findById(analysisId).populate('projectId');
-    if (!project) {
+    // Get analysis document first to get userId
+    const analysis = await Analysis.findById(analysisId);
+    if (!analysis) {
       throw new Error('Analysis not found');
+    }
+
+    const userId = analysis.userId;
+    if (!userId) {
+      throw new Error('User ID not found in analysis data');
     }
 
     // Get the actual project document to get gitlabProjectId
@@ -238,11 +243,6 @@ async function processAnalysis(analysisId: string, projectId: string, commitHash
     const projectDoc = await Project.findById(projectId);
     if (!projectDoc) {
       throw new Error('Project not found');
-    }
-
-    const userId = analysis.userId;
-    if (!userId) {
-      throw new Error('User ID not found in analysis data');
     }
 
     const actualGitlabProjectId = projectDoc.gitlabProjectId;
