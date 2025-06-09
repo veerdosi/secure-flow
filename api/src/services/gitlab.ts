@@ -183,17 +183,20 @@ class GitLabService {
       });
 
       const response = await client.get(`/projects/${projectId}/repository/files/${encodedPath}/raw`, {
-        params: { ref }
+        params: { ref },
+        responseType: 'text'
       });
 
       logger.info(`✅ File content retrieved successfully`, {
         projectId,
         filePath,
-        contentLength: response.data.length,
+        contentLength: typeof response.data === 'string' ? response.data.length : 'non-string',
+        contentType: typeof response.data,
         statusCode: response.status
       });
 
-      return response.data;
+      // Ensure we return a string
+      return typeof response.data === 'string' ? response.data : String(response.data);
     } catch (error: any) {
       logger.error(`❌ Failed to get GitLab file content`, {
         projectId,
