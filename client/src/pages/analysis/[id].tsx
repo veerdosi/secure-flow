@@ -107,7 +107,8 @@ const AnalysisPage: React.FC = () => {
               inputPoints: 0,
               outputPoints: 0,
               externalDependencies: 0,
-              privilegedFunctions: 0
+              privilegedFunctions: 0,
+              score: 0
             }
           },
           aiAnalysis: analysisData.aiAnalysis || '',
@@ -122,7 +123,15 @@ const AnalysisPage: React.FC = () => {
           status: analysisData.status,
           stage: analysisData.stage,
           progress: analysisData.progress || 0,
-          userId: analysisData.userId || ''
+          userId: analysisData.userId || '',
+          proposedRemediations: analysisData.proposedRemediations || [],
+          humanApproval: analysisData.humanApproval,
+          autoRemediationEnabled: analysisData.autoRemediationEnabled || false,
+          startedAt: analysisData.startedAt,
+          completedAt: analysisData.completedAt,
+          failedAt: analysisData.failedAt,
+          triggeredBy: analysisData.triggeredBy,
+          error: analysisData.error
         };
 
         setAnalysis(formattedAnalysis);
@@ -175,11 +184,17 @@ const AnalysisPage: React.FC = () => {
           aiAnalysis: analysisData.aiAnalysis || prev.aiAnalysis,
           remediationSteps: analysisData.remediationSteps || prev.remediationSteps,
           complianceScore: analysisData.complianceScore || prev.complianceScore,
+          proposedRemediations: analysisData.proposedRemediations || prev.proposedRemediations,
+          humanApproval: analysisData.humanApproval || prev.humanApproval,
+          autoRemediationEnabled: analysisData.autoRemediationEnabled || prev.autoRemediationEnabled,
+          startedAt: analysisData.startedAt || prev.startedAt,
+          completedAt: analysisData.completedAt || prev.completedAt,
+          failedAt: analysisData.failedAt || prev.failedAt,
+          error: analysisData.error || prev.error
         } : null);
 
-        // Reset retry count on successful request
         setRetryCount(0);
-        setPollingInterval(10000); // Reset to normal interval
+        setPollingInterval(10000);
       }
     } catch (error: any) {
       console.warn('Failed to update analysis:', error);
