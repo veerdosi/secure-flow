@@ -50,7 +50,6 @@ GitLab Webhook → Cloud Function → Vertex AI → Firestore → React Dashboar
 
 - Node.js 18+
 - npm or yarn
-- Firebase CLI
 - Google Cloud Project with Vertex AI enabled
 - GitLab API token
 
