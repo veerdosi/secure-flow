@@ -1,5 +1,5 @@
 import Head from 'next/head'
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import {
   Shield,
@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import { useUser, UserProfile } from '@/components/UserProvider'
 import GitLabSettings from '@/components/GitLabSettings'
+import ProjectSetup from '@/components/ProjectSetup'
 import { useRouter } from 'next/router'
 import { projectAPI, analysisAPI } from '@/utils/api'
 import { Project, SecurityAnalysis } from '@/types'
@@ -38,6 +39,7 @@ export default function ProjectsPage() {
   const [loadingProjects, setLoadingProjects] = useState(true)
   const [error, setError] = useState('')
   const [showGitLabSettings, setShowGitLabSettings] = useState(false)
+  const [triggerProjectSetup, setTriggerProjectSetup] = useState(false)
 
   useEffect(() => {
     if (!loading && !user) {
@@ -138,11 +140,20 @@ export default function ProjectsPage() {
     setFilteredProjects(filtered)
   }
 
-  const handleGitLabConfigured = () => {
+  const handleGitLabConfigured = useCallback(() => {
     // Refresh projects or handle any necessary updates after GitLab configuration
     loadProjectsWithAnalysis()
     setShowGitLabSettings(false)
-  }
+    // Auto-trigger project setup after GitLab is configured
+    setTriggerProjectSetup(true)
+  }, [])
+
+  const handleProjectCreated = useCallback((newProject: any) => {
+    // Add the new project to the list and redirect to it
+    setProjects(prev => [...prev, newProject])
+    setTriggerProjectSetup(false)
+    router.push(`/projects/${newProject._id}`)
+  }, [router])
 
   const getThreatLevelColor = (level?: string) => {
     switch (level) {
@@ -197,11 +208,7 @@ export default function ProjectsPage() {
               </div>
               <div className="flex items-center space-x-4">
                 <motion.button
-                  onClick={() => {
-                    // For now, we'll implement project creation through a modal or redirect to a setup page
-                    // You may want to create a dedicated project creation page later
-                    window.location.href = '/projects'
-                  }}
+                  onClick={() => setTriggerProjectSetup(true)}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   className="bg-cyber-blue hover:bg-blue-600 text-black font-semibold py-2 px-4 rounded-lg transition-colors flex items-center"
@@ -440,7 +447,7 @@ export default function ProjectsPage() {
               </p>
               {!searchTerm && filterStatus === 'all' && (
                 <motion.button
-                  onClick={() => router.push('/projects')}
+                  onClick={() => setTriggerProjectSetup(true)}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   className="bg-cyber-blue hover:bg-blue-600 text-black font-semibold py-3 px-6 rounded-lg transition-colors flex items-center mx-auto"
@@ -458,6 +465,12 @@ export default function ProjectsPage() {
           onClose={() => setShowGitLabSettings(false)}
           onSuccess={handleGitLabConfigured}
           currentSettings={user?.gitlabSettings}
+        />
+
+        <ProjectSetup
+          onProjectCreated={handleProjectCreated}
+          triggerOpen={triggerProjectSetup}
+          onClose={() => setTriggerProjectSetup(false)}
         />
       </div>
     </>
