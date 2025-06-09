@@ -15,7 +15,8 @@ import {
   TrendingDown,
   ArrowRight
 } from 'lucide-react'
-import { useUser } from '@/components/UserProvider'
+import { useUser, UserProfile } from '@/components/UserProvider'
+import GitLabSettings from '@/components/GitLabSettings'
 import { useRouter } from 'next/router'
 import { projectAPI, analysisAPI } from '@/utils/api'
 import { Project, SecurityAnalysis } from '@/types'
@@ -36,6 +37,7 @@ export default function ProjectsPage() {
   const [filterStatus, setFilterStatus] = useState('all')
   const [loadingProjects, setLoadingProjects] = useState(true)
   const [error, setError] = useState('')
+  const [showGitLabSettings, setShowGitLabSettings] = useState(false)
 
   useEffect(() => {
     if (!loading && !user) {
@@ -136,6 +138,12 @@ export default function ProjectsPage() {
     setFilteredProjects(filtered)
   }
 
+  const handleGitLabConfigured = () => {
+    // Refresh projects or handle any necessary updates after GitLab configuration
+    loadProjectsWithAnalysis()
+    setShowGitLabSettings(false)
+  }
+
   const getThreatLevelColor = (level?: string) => {
     switch (level) {
       case 'CRITICAL': return 'bg-red-500/20 text-red-400 border-red-500/50'
@@ -187,19 +195,26 @@ export default function ProjectsPage() {
                   <p className="text-gray-400 text-sm">Security Analysis Dashboard</p>
                 </div>
               </div>
-              <motion.button
-                onClick={() => {
-                  // For now, we'll implement project creation through a modal or redirect to a setup page
-                  // You may want to create a dedicated project creation page later
-                  window.location.href = '/projects'
-                }}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="bg-cyber-blue hover:bg-blue-600 text-black font-semibold py-2 px-4 rounded-lg transition-colors flex items-center"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Add Project
-              </motion.button>
+              <div className="flex items-center space-x-4">
+                <motion.button
+                  onClick={() => {
+                    // For now, we'll implement project creation through a modal or redirect to a setup page
+                    // You may want to create a dedicated project creation page later
+                    window.location.href = '/projects'
+                  }}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="bg-cyber-blue hover:bg-blue-600 text-black font-semibold py-2 px-4 rounded-lg transition-colors flex items-center"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Project
+                </motion.button>
+                <UserProfile
+                  onGitLabConfigured={handleGitLabConfigured}
+                  showGitLabSettings={showGitLabSettings}
+                  setShowGitLabSettings={setShowGitLabSettings}
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -437,6 +452,13 @@ export default function ProjectsPage() {
             </motion.div>
           )}
         </div>
+
+        <GitLabSettings
+          isOpen={showGitLabSettings}
+          onClose={() => setShowGitLabSettings(false)}
+          onSuccess={handleGitLabConfigured}
+          currentSettings={user?.gitlabSettings}
+        />
       </div>
     </>
   )
