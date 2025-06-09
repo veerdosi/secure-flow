@@ -61,8 +61,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess, defau
         sameSite: 'strict'
       });
 
-      console.log(`${isLogin ? 'Login' : 'Registration'} successful:`, response.user);
-
       // Redirect to dashboard
       window.location.href = '/projects';
     } catch (error: any) {
