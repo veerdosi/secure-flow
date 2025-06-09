@@ -2,7 +2,7 @@
 
 **Real-time AI-powered security analysis platform for GitLab projects**
 
-![SecureFlow AI Dashboard](https://via.placeholder.com/800x400/0a0a0b/39ff14?text=SecureFlow+AI+Dashboard)
+![SecureFlow AI Dashboard](./secureflow-dashboard.png)
 
 ## 🚀 Overview
 
