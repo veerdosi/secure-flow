@@ -276,7 +276,15 @@ class AIAnalysisService {
         return text;
       });
 
-      const threatModel = JSON.parse(result);
+      let threatModel;
+      try {
+        // Clean up markdown formatting
+        const cleanResult = this.cleanJsonResponse(result);
+        threatModel = JSON.parse(cleanResult);
+      } catch (parseError) {
+        logger.error('Threat model parsing failed, raw response:', result.substring(0, 500));
+        throw new Error(`Threat model generation failed: ${parseError instanceof Error ? parseError.message : 'Invalid JSON response'}`);
+      }
       
       // Enhance with 3D visualization data for the frontend
       threatModel.visualization = this.generateVisualizationData(threatModel);
@@ -316,7 +324,15 @@ class AIAnalysisService {
         return response.response.text();
       });
 
-      const analysis = JSON.parse(result);
+      let analysis;
+      try {
+        const cleanResult = this.cleanJsonResponse(result);
+        analysis = JSON.parse(cleanResult);
+      } catch (parseError) {
+        logger.error('Dependency analysis parsing failed:', parseError);
+        logger.error('Raw response:', result.substring(0, 500));
+        throw new Error(`Dependency analysis parsing failed: ${parseError instanceof Error ? parseError.message : 'Invalid JSON response'}`);
+      }
       
       // Enhance with supply chain risk assessment
       analysis.supplyChainRisk = this.assessSupplyChainRisk(dependencies);
@@ -371,7 +387,15 @@ class AIAnalysisService {
         return text;
       });
 
-      const remediationSteps = JSON.parse(result);
+      let remediationSteps;
+      try {
+        const cleanResult = this.cleanJsonResponse(result);
+        remediationSteps = JSON.parse(cleanResult);
+      } catch (parseError) {
+        logger.error('Remediation parsing failed:', parseError);
+        logger.error('Raw response:', result.substring(0, 500));
+        throw new Error(`Remediation parsing failed: ${parseError instanceof Error ? parseError.message : 'Invalid JSON response'}`);
+      }
       
       // Enhance with automation capabilities
       const enhancedSteps = remediationSteps.map((step: any) => ({
@@ -403,6 +427,15 @@ class AIAnalysisService {
   }
 
   // ====== PRIVATE UTILITY METHODS ======
+
+  private cleanJsonResponse(result: string): string {
+    return result
+      .replace(/```json\n?/g, '')
+      .replace(/```\n?/g, '')
+      .replace(/^#+\s+.*$/gm, '') // Remove markdown headers
+      .replace(/^\s*[\r\n]/gm, '')
+      .trim();
+  }
 
   private async executeWithRetry<T>(operation: () => Promise<T>): Promise<T> {
     let lastError: Error;
@@ -453,10 +486,7 @@ class AIAnalysisService {
   private parseAndValidateAnalysis(result: string, filePath: string): any {
     try {
       // Clean up common AI response formatting issues
-      const cleanResult = result
-        .replace(/```json\n?/g, '')
-        .replace(/```\n?/g, '')
-        .replace(/^\s*[\r\n]/gm, '');
+      const cleanResult = this.cleanJsonResponse(result);
       
       const analysis = JSON.parse(cleanResult);
       
@@ -473,7 +503,7 @@ class AIAnalysisService {
       return analysis;
     } catch (parseError) {
       logger.error('Failed to parse AI response:', parseError);
-      logger.error('Raw response:', result);
+      logger.error('Raw response:', result.substring(0, 500));
       
       // Return fallback analysis
       return {
@@ -490,10 +520,7 @@ class AIAnalysisService {
 
   private parseCodeFixResponse(result: string): CodeFixResponse {
     try {
-      const cleanResult = result
-        .replace(/```json\n?/g, '')
-        .replace(/```\n?/g, '')
-        .replace(/^\s*[\r\n]/gm, '');
+      const cleanResult = this.cleanJsonResponse(result);
       
       const fix = JSON.parse(cleanResult);
       
@@ -506,6 +533,7 @@ class AIAnalysisService {
       };
     } catch (parseError) {
       logger.error('Failed to parse code fix response:', parseError);
+      logger.error('Raw response:', result.substring(0, 500));
       throw new Error(`Code fix parsing failed: ${parseError instanceof Error ? parseError.message : 'Invalid JSON response'}`);
     }
   }
@@ -635,7 +663,9 @@ CODE TO ANALYZE:
 ${code}
 \`\`\`
 
-REQUIRED OUTPUT FORMAT (Valid JSON):
+RESPOND WITH VALID JSON ONLY. NO MARKDOWN FORMATTING.
+
+Required JSON format:
 {
   "vulnerabilities": [
     {
@@ -707,7 +737,9 @@ REQUIREMENTS:
 5. Provide clear explanation of changes
 6. Include test suggestions to verify the fix
 
-OUTPUT FORMAT (Valid JSON):
+RESPOND WITH VALID JSON ONLY. NO MARKDOWN FORMATTING.
+
+Required JSON format:
 {
   "fixedCode": "Complete corrected code with proper escaping",
   "description": "Brief description of what was fixed",
@@ -727,6 +759,206 @@ IMPORTANT:
 - Fixed code must be syntactically correct and functional
 - Include proper error handling where applicable
 - Consider edge cases and input validation`;
+  }
+
+  private buildThreatModelPrompt(files: string[], structure: any, context: any): string {
+    return `You are a cybersecurity architect specializing in threat modeling.
+
+CONTEXT:
+- Project files: ${files.slice(0, 20).join(', ')}
+- Project type: ${context.projectType}
+- Security patterns: ${context.securityPatterns.join(', ')}
+- Data flows: ${JSON.stringify(context.dataFlows, null, 2)}
+
+Generate a comprehensive threat model that identifies security risks, attack vectors, and potential vulnerabilities based on the project architecture.
+
+RESPOND WITH VALID JSON ONLY. NO MARKDOWN FORMATTING.
+
+Required JSON format:
+{
+  "threats": [
+    {
+      "id": "T001",
+      "title": "SQL Injection Attack",
+      "description": "Detailed threat description",
+      "severity": "HIGH",
+      "likelihood": "MEDIUM",
+      "impact": "HIGH",
+      "category": "Injection",
+      "attackVector": "Web application inputs",
+      "affectedComponents": ["database", "web-api"],
+      "mitigations": ["Input validation", "Parameterized queries"]
+    }
+  ],
+  "components": [
+    {
+      "id": "comp1",
+      "name": "Web API",
+      "type": "service",
+      "trustLevel": "internal",
+      "dataClassification": "sensitive"
+    }
+  ],
+  "dataFlows": [
+    {
+      "from": "client",
+      "to": "api", 
+      "data": "user credentials",
+      "protocol": "HTTPS",
+      "risks": ["Man-in-the-middle"]
+    }
+  ],
+  "riskAssessment": {
+    "overallRisk": "MEDIUM",
+    "criticalThreats": 2,
+    "recommendations": ["Implement WAF", "Regular security testing"]
+  }
+}`;
+  }
+
+  private buildDependencyAnalysisPrompt(dependencies: any): string {
+    return `You are a cybersecurity expert specializing in dependency and supply chain security.
+
+DEPENDENCIES TO ANALYZE:
+${JSON.stringify(dependencies, null, 2)}
+
+Analyze these dependencies for security vulnerabilities, license issues, and supply chain risks.
+
+RESPOND WITH VALID JSON ONLY. NO MARKDOWN FORMATTING.
+
+Required JSON format:
+{
+  "vulnerabilities": [
+    {
+      "package": "package-name",
+      "version": "1.0.0", 
+      "severity": "HIGH",
+      "cve": "CVE-2023-1234",
+      "description": "Vulnerability description",
+      "fixedIn": "1.0.1",
+      "exploitable": true
+    }
+  ],
+  "supplyChainRisks": [
+    {
+      "package": "suspicious-package",
+      "risk": "TYPOSQUATTING",
+      "severity": "MEDIUM",
+      "description": "Package name similar to popular library"
+    }
+  ],
+  "licenseIssues": [
+    {
+      "package": "restrictive-lib",
+      "license": "GPL-3.0",
+      "issue": "Copyleft license incompatible with commercial use"
+    }
+  ],
+  "recommendations": [
+    "Update vulnerable packages",
+    "Review license compatibility"
+  ],
+  "riskScore": 65
+}`;
+  }
+
+  private buildRemediationPrompt(vulnerabilities: any[], context: any): string {
+    return `You are a security remediation expert specializing in automated vulnerability fixes.
+
+VULNERABILITIES TO REMEDIATE:
+${JSON.stringify(vulnerabilities.slice(0, 10), null, 2)}${vulnerabilities.length > 10 ? '\n... (showing first 10 of ' + vulnerabilities.length + ')' : ''}
+
+PROJECT CONTEXT:
+${JSON.stringify(context, null, 2)}
+
+Generate prioritized remediation steps for these security vulnerabilities.
+
+RESPOND WITH VALID JSON ONLY. NO MARKDOWN FORMATTING.
+
+REMEDIATION REQUIREMENTS:
+1. **Prioritization**: Critical/High impact issues first
+2. **Automation**: Identify automatable fixes
+3. **Dependencies**: Consider fix dependencies and order
+4. **Risk Assessment**: Evaluate risk of each remediation
+5. **Testing Strategy**: Include verification steps
+
+Required JSON array format:
+[
+  {
+    "id": "remediation_1",
+    "title": "Fix SQL Injection in User Authentication",
+    "description": "Replace string concatenation with parameterized queries",
+    "vulnerabilityIds": ["vuln_123", "vuln_124"],
+    "priority": "CRITICAL",
+    "category": "CODE_FIX",
+    "effort": "LOW",
+    "files": ["auth.js", "db.js"],
+    "steps": [
+      "Update database query functions",
+      "Replace string concatenation with prepared statements",
+      "Add input validation"
+    ],
+    "codeChanges": [
+      {
+        "file": "auth.js",
+        "action": "REPLACE",
+        "oldCode": "SELECT * FROM users WHERE email = '" + email + "'",
+        "newCode": "SELECT * FROM users WHERE email = ?",
+        "explanation": "Use parameterized query to prevent SQL injection"
+      }
+    ],
+    "testingStrategy": [
+      "Unit tests for all modified functions",
+      "Security tests with malicious input",
+      "Integration tests for authentication flow"
+    ],
+    "automationPossible": true,
+    "riskLevel": "LOW",
+    "prerequisites": [],
+    "estimatedTime": "2-4 hours"
+  }
+]`;
+  }
+
+  private buildIacAnalysisPrompt(iacAnalysis: any): string {
+    return `You are a cloud security expert specializing in Infrastructure as Code (IaC) security analysis.
+
+INFRASTRUCTURE ANALYSIS:
+${JSON.stringify(iacAnalysis, null, 2)}
+
+Analyze the Infrastructure as Code configurations for security misconfigurations, compliance issues, and best practice violations.
+
+RESPOND WITH VALID JSON ONLY. NO MARKDOWN FORMATTING.
+
+Required JSON format:
+{
+  "misconfigurations": [
+    {
+      "file": "terraform/main.tf",
+      "resource": "aws_s3_bucket.example",
+      "issue": "Public read access enabled",
+      "severity": "HIGH",
+      "line": 25,
+      "recommendation": "Remove public-read ACL and use bucket policies",
+      "cis_benchmark": "CIS AWS 2.1.1"
+    }
+  ],
+  "complianceIssues": [
+    {
+      "standard": "SOC2",
+      "requirement": "Access Control",
+      "violation": "IAM role has excessive permissions",
+      "resources": ["aws_iam_role.app_role"]
+    }
+  ],
+  "bestPractices": [
+    "Enable encryption at rest for all storage resources",
+    "Implement least privilege access policies",
+    "Use infrastructure secrets management"
+  ],
+  "riskScore": 75,
+  "criticalIssues": 3
+}`;
   }
 
   private getVulnerabilityExamples(language: string): string {
@@ -777,60 +1009,6 @@ Path Traversal: new File(userPath)`
       }
     };
     return patterns[language]?.[vulnerabilityType] || 'Use secure coding practices for this vulnerability type';
-  }
-
-  private buildRemediationPrompt(vulnerabilities: any[], context: any): string {
-    return `Generate prioritized remediation steps for security vulnerabilities:
-
-VULNERABILITIES:
-${JSON.stringify(vulnerabilities.slice(0, 10), null, 2)}${vulnerabilities.length > 10 ? '\n... (showing first 10 of ' + vulnerabilities.length + ')' : ''}
-
-PROJECT CONTEXT:
-${JSON.stringify(context, null, 2)}
-
-REMEDIATION REQUIREMENTS:
-1. **Prioritization**: Critical/High impact issues first
-2. **Automation**: Identify automatable fixes
-3. **Dependencies**: Consider fix dependencies and order
-4. **Risk Assessment**: Evaluate risk of each remediation
-5. **Testing Strategy**: Include verification steps
-
-OUTPUT FORMAT (Valid JSON):
-[
-  {
-    "id": "remediation_1",
-    "title": "Fix SQL Injection in User Authentication",
-    "description": "Replace string concatenation with parameterized queries",
-    "vulnerabilityIds": ["vuln_123", "vuln_124"],
-    "priority": "CRITICAL",
-    "category": "CODE_FIX",
-    "effort": "LOW",
-    "files": ["auth.js", "db.js"],
-    "steps": [
-      "Update database query functions",
-      "Replace string concatenation with prepared statements",
-      "Add input validation"
-    ],
-    "codeChanges": [
-      {
-        "file": "auth.js",
-        "action": "REPLACE",
-        "oldCode": "SELECT * FROM users WHERE email = '" + email + "'",
-        "newCode": "SELECT * FROM users WHERE email = ?",
-        "explanation": "Use parameterized query to prevent SQL injection"
-      }
-    ],
-    "testingStrategy": [
-      "Unit tests for all modified functions",
-      "Security tests with malicious input",
-      "Integration tests for authentication flow"
-    ],
-    "automationPossible": true,
-    "riskLevel": "LOW",
-    "prerequisites": [],
-    "estimatedTime": "2-4 hours"
-  }
-]`;
   }
 
   private async enhanceAnalysisWithContext(analysis: any, context: any): Promise<any> {
@@ -925,14 +1103,6 @@ OUTPUT FORMAT (Valid JSON):
     return ['Enable CloudTrail logging', 'Implement least privilege access'];
   }
 
-  private buildDependencyAnalysisPrompt(dependencies: any): string {
-    return `Analyze dependencies for security vulnerabilities: ${JSON.stringify(dependencies, null, 2)}`;
-  }
-
-  private buildIacAnalysisPrompt(iacAnalysis: any): string {
-    return `Analyze Infrastructure as Code for security misconfigurations: ${JSON.stringify(iacAnalysis, null, 2)}`;
-  }
-
   private analyzeProjectArchitecture(files: string[]): string {
     if (files.some(f => f.includes('docker') || f.includes('k8s'))) return 'microservices';
     if (files.some(f => f.includes('api') && f.includes('client'))) return 'spa_api';
@@ -965,10 +1135,6 @@ OUTPUT FORMAT (Valid JSON):
     };
   }
 
-  private buildThreatModelPrompt(files: string[], structure: any, context: any): string {
-    return `Generate threat model for project with files: ${files.slice(0, 10).join(', ')}`;
-  }
-
   private compareToPreviousAnalysis(current: any, previous: any[]): any {
     return {
       newVulnerabilities: current.vulnerabilities.length - (previous.length || 0),
@@ -976,7 +1142,6 @@ OUTPUT FORMAT (Valid JSON):
       recurringIssues: []
     };
   }
-
 }
 
 export default new AIAnalysisService();
