@@ -6,23 +6,25 @@
 
 ## 🚀 Overview
 
-SecureFlow AI continuously monitors your GitLab projects for security vulnerabilities using advanced AI analysis. Get real-time threat detection, interactive 3D threat models, and automated remediation suggestions.
+SecureFlow AI continuously monitors your GitLab projects for security vulnerabilities using advanced AI analysis. Get real-time threat detection, interactive 3D threat models, and automated remediation suggestions with approval workflows.
 
 ### ✨ Key Features
 
-- **🤖 AI-Powered Analysis** - Vertex AI analyzes code for security vulnerabilities
+- **🤖 Gemini AI Analysis** - Google's Gemini Pro analyzes code for security vulnerabilities
 - **⚡ Real-Time Monitoring** - GitLab webhooks trigger instant analysis on code pushes
-- **🎯 Interactive 3D Threat Models** - Visualize attack surfaces and data flows
+- **🎯 Interactive 3D Threat Models** - Visualize attack surfaces and data flows with Three.js
 - **📊 Live Security Dashboard** - Real-time scores, threat levels, and vulnerability feeds
-- **🔧 Automated Remediation** - AI-generated fix suggestions with code examples
+- **🔧 Automated Remediation** - AI-generated fix suggestions with approval workflows
 - **📈 Compliance Tracking** - OWASP, PCI, SOX, GDPR compliance scoring
-- **🎨 Cyber-themed UI** - Dark mode with animated security visualizations
+- **🔐 User Authentication** - Secure JWT-based auth with Google OAuth integration
+- **📱 Responsive Design** - Modern Next.js frontend with Tailwind CSS and Framer Motion
+- **🔔 Smart Notifications** - Email alerts for critical vulnerabilities
 
 ## 🏗️ Architecture
 
 ```
-GitLab Webhook → Cloud Function → Vertex AI → Firestore → React Dashboard
-      ↓              ↓              ↓           ↓            ↓
+GitLab Webhook → Express API → Gemini AI → MongoDB → Next.js Dashboard
+      ↓              ↓            ↓         ↓            ↓
   Code Push  →  AI Analysis  →  Results  →  Storage  →  Visualization
 ```
 
@@ -30,19 +32,29 @@ GitLab Webhook → Cloud Function → Vertex AI → Firestore → React Dashboar
 
 ### Frontend
 
-- **Next.js 14** - React framework with app router
-- **TypeScript** - Type-safe development
+- **Next.js 14** - React framework with app router and TypeScript
 - **Tailwind CSS** - Utility-first styling with cyber theme
 - **Framer Motion** - Smooth animations and transitions
 - **Three.js** - 3D threat model visualizations
-- **Recharts** - Security metrics and charts
+- **Chart.js & Recharts** - Security metrics and data visualization
+- **Zustand** - State management
 
 ### Backend
 
-- **Node.js/Express** - REST API server
-- **MongoDB** - Real-time database
-- **Gemini API** - AI-powered code analysis
-- **GitLab API** - Repository integration
+- **Node.js/Express** - REST API server with TypeScript
+- **MongoDB/Mongoose** - NoSQL database with ODM
+- **Gemini AI** - Google's generative AI for code analysis
+- **GitLab API** - Repository integration and webhooks
+- **JWT & bcrypt** - Authentication and password hashing
+- **Nodemailer** - Email notifications
+- **Node-cron** - Scheduled analysis tasks
+
+### DevOps & Deployment
+
+- **Vercel** - Frontend hosting with serverless functions
+- **Render** - Backend API hosting
+- **MongoDB Atlas** - Cloud database
+- **GitHub Actions** - CI/CD pipeline
 
 ## 🚀 Quick Start
 
@@ -50,7 +62,8 @@ GitLab Webhook → Cloud Function → Vertex AI → Firestore → React Dashboar
 
 - Node.js 18+
 - npm or yarn
-- Google Cloud Project with Vertex AI enabled
+- MongoDB (local or Atlas)
+- Gemini API key
 - GitLab API token
 
 ### 1. Clone & Install
@@ -66,138 +79,220 @@ npm install
 Copy `.env.example` to `.env` and configure:
 
 ```bash
-# MongoDB (required)
+# Database (required)
 MONGODB_URI=mongodb://localhost:27017/secure-flow
 # or MongoDB Atlas: mongodb+srv://user:pass@cluster.mongodb.net/secure-flow
 
-# JWT Authentication
+# JWT Authentication (required)
 JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
 
-# Google Cloud (only needed for AI analysis)
-GOOGLE_CLOUD_PROJECT=your-project-id
-VERTEX_AI_LOCATION=us-central1
+# Gemini AI (required) - Get from: https://aistudio.google.com/app/apikey
+GEMINI_API_KEY=AIzaSyC...your-gemini-api-key-here
+GEMINI_MODEL=gemini-pro
 
-# Optional: Email notifications
-SMTP_HOST=smtp.gmail.com
-SMTP_USER=your-email@gmail.com
-SMTP_PASS=your-app-password
+# Google OAuth (optional)
+GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+NEXT_PUBLIC_GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
+
+# API Configuration
+NEXT_PUBLIC_API_URL=http://localhost:3001
+CLIENT_URL=http://localhost:3000
 ```
 
-**Note:** GitLab API tokens are now configured per-user in the app settings, not in environment variables!
+**Note:** GitLab tokens are configured per-user in the app, not environment variables.
 
 ### 3. Database Setup
 
-**Option A: Local MongoDB**
+**Local MongoDB:**
 
 ```bash
-# Install MongoDB locally
-brew install mongodb/brew/mongodb-community  # macOS
-# or follow MongoDB installation guide for your OS
-
-# Start MongoDB
+# macOS
+brew install mongodb/brew/mongodb-community
 brew services start mongodb/brew/mongodb-community
+
+# Ubuntu/Debian
+sudo apt install mongodb
+sudo systemctl start mongodb
 ```
 
-**Option B: MongoDB Atlas (Cloud)**
+**MongoDB Atlas (recommended):**
 
-1. Create free account at [MongoDB Atlas](https://www.mongodb.com/atlas)
-2. Create a cluster and get connection string
-3. Update MONGODB_URI in .env file
+1. Create account at [MongoDB Atlas](https://www.mongodb.com/atlas)
+2. Create cluster and get connection string
+3. Update `MONGODB_URI` in `.env`
 
 ### 4. Development
 
 ```bash
-# Start all services
+# Start both frontend and backend
 npm run dev
 
-# Or start individually:
-npm run dev:client  # Frontend (port 3000)
-npm run dev:api     # Backend API (port 3001)
+# Or individually:
+npm run dev:client  # Next.js frontend (port 3000)
+npm run dev:api     # Express backend (port 3001)
 ```
 
 ### 5. User Setup
 
-1. **Create Account**: Sign up at http://localhost:3000
-2. **Configure GitLab**: Click profile → GitLab Settings
-   - Create GitLab Personal Access Token with "api" scope
-   - Add your GitLab URL and token
-3. **Add Project**: Click "Add GitLab Project" and configure webhook
+1. **Register**: Create account at http://localhost:3000
+2. **GitLab Integration**: Profile → Settings → Add GitLab token
+3. **Add Projects**: Dashboard → Add GitLab Project → Configure webhooks
 
-## 🔧 Configuration
+## 🔧 Project Structure
 
-### Project Setup
-
-```typescript
-// Configure GitLab project for monitoring
-const projectConfig = {
-  gitlabProjectId: "12345",
-  scanFrequency: "ON_PUSH",
-  scanTypes: ["STATIC_ANALYSIS", "DEPENDENCY_SCAN"],
-  notificationSettings: {
-    email: true,
-    minSeverity: "MEDIUM",
-  },
-};
+```
+secure-flow/
+├── client/                 # Next.js frontend
+│   ├── src/
+│   │   ├── components/    # React components
+│   │   ├── pages/         # Next.js pages
+│   │   ├── hooks/         # Custom hooks
+│   │   ├── types/         # TypeScript types
+│   │   └── utils/         # Utility functions
+│   └── package.json
+├── api/                   # Express backend
+│   ├── src/
+│   │   ├── models/        # MongoDB models
+│   │   ├── routes/        # API routes
+│   │   ├── services/      # Business logic
+│   │   ├── middleware/    # Express middleware
+│   │   └── utils/         # Helper functions
+│   └── package.json
+├── cloud-functions/       # Serverless functions
+│   └── webhook-handler/   # GitLab webhook handler
+└── package.json          # Workspace root
 ```
 
-### Webhook Configuration
+## 🚀 Deployment
+
+### Automated Deployment
+
+The project includes deployment configurations for:
+
+**Frontend (Vercel):**
 
 ```bash
-# GitLab webhook URL
-https://your-domain.com/api/webhooks/gitlab
-
-# Required events:
-- Push events
-- Merge request events
-
-# Secret token: Set in environment variables
+# Vercel deployment is automatic on git push
+# Configure environment variables in Vercel dashboard
 ```
 
-## 🚀 Deployment Options
-
-### Firebase Hosting (Recommended)
+**Backend (Render):**
 
 ```bash
-npm run build
-firebase deploy
+# Uses render.yaml configuration
+# Set environment variables in Render dashboard:
+# - MONGODB_URI
+# - JWT_SECRET
+# - GEMINI_API_KEY
+# - CORS_ORIGIN (your Vercel URL)
 ```
 
 ### Manual Deployment
 
 ```bash
-# Build client
-cd client && npm run build
+# Build everything
+npm run build
 
-# Deploy to your hosting provider
-# Upload client/out/ directory
+# Deploy client to Vercel
+cd client && vercel deploy
+
+# Deploy API to Render or your hosting provider
+cd api && npm run build
 ```
 
-## 📝 API Documentation
+## 📝 API Endpoints
 
-### Start Analysis
+### Authentication
 
 ```bash
-POST /api/analysis/start
-{
-  "projectId": "12345",
-  "commitHash": "abc123",
-  "scanTypes": ["STATIC_ANALYSIS"]
-}
+POST /api/auth/register    # User registration
+POST /api/auth/login       # User login
+GET  /api/auth/me          # Get user profile
+PUT  /api/auth/profile     # Update profile
 ```
 
-### Get Analysis Results
+### Projects
 
 ```bash
-GET /api/analysis/{analysisId}
+GET    /api/projects           # List user projects
+POST   /api/projects           # Add new project
+PUT    /api/projects/:id       # Update project
+DELETE /api/projects/:id       # Delete project
 ```
 
-### Project Configuration
+### Analysis
 
 ```bash
-POST /api/projects
-{
-  "name": "My Project",
-  "gitlabProjectId": "12345",
-  "scanFrequency": "ON_PUSH"
-}
+GET  /api/analysis              # List analyses
+POST /api/analysis/start        # Start new analysis
+GET  /api/analysis/:id          # Get analysis details
+GET  /api/analysis/:id/results  # Get analysis results
 ```
+
+### Webhooks
+
+```bash
+POST /api/webhooks/gitlab      # GitLab webhook endpoint
+```
+
+### Approvals
+
+```bash
+GET  /api/approval/pending     # Get pending approvals
+POST /api/approval/:id/approve # Approve remediation
+POST /api/approval/:id/reject  # Reject remediation
+```
+
+## 🔐 Security Features
+
+- **JWT Authentication** - Secure token-based auth
+- **Rate Limiting** - Prevents API abuse
+- **CORS Protection** - Configurable origin restrictions
+- **Helmet Security** - Security headers
+- **Input Validation** - Joi schema validation
+- **Password Hashing** - bcrypt with configurable rounds
+- **Environment Isolation** - Separate dev/prod configs
+
+## 🧪 Testing
+
+```bash
+# Run API tests
+cd api && npm test
+
+# Type checking
+npm run type-check
+
+# Linting
+npm run lint
+```
+
+## 📈 Monitoring & Analytics
+
+- **Real-time Analysis** - Live vulnerability scanning
+- **Scheduled Scans** - Automated periodic analysis
+- **Email Notifications** - Critical vulnerability alerts
+- **Compliance Tracking** - OWASP and regulatory compliance
+- **Performance Metrics** - Analysis timing and success rates
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit changes (`git commit -m 'Add amazing feature'`)
+4. Push to branch (`git push origin feature/amazing-feature`)
+5. Open Pull Request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## 🆘 Support
+
+- **Documentation**: Check this README and inline code comments
+- **Issues**: Report bugs via GitHub Issues
+- **Email**: Contact team for enterprise support
+
+---
+
+**Built with ❤️ using Next.js, Express, MongoDB, and Gemini AI**
