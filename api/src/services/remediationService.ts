@@ -87,7 +87,7 @@ class RemediationService {
       actionsGenerated: actions.length,
       processedCount,
       errorCount,
-      automatedActions: actions.filter((a: any) => a.automated).length,).length,
+      automatedActions: actions.filter((a: any) => a.automated).length,
       riskBreakdown: actions.reduce((acc: any, a) => {
         acc[a.estimatedRisk] = (acc[a.estimatedRisk] || 0) + 1;
         return acc;
@@ -153,7 +153,7 @@ class RemediationService {
   }
 
   private groupActionsByFile(actions: any[]): Record<string, any[]> {
-    return actions.reduce((groups, action) => {
+    return actions.reduce((groups: Record<string, any[]>, action: any) => {
       if (!groups[action.file]) {
         groups[action.file] = [];
       }
