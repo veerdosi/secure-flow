@@ -49,7 +49,7 @@ class NotificationService {
       });
 
       // Verify connection
-      this.emailTransporter?.verify((error) => {
+      this.emailTransporter?.verify((error: Error | null) => {
         if (error) {
           logger.error('SMTP connection failed:', error);
           this.emailTransporter = null;
