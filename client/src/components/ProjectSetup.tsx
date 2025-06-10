@@ -247,7 +247,7 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({
     }
   ];
 
-  if (!isOpen) {
+  if (!isOpen && !triggerOpen) {
     return (
       <motion.button
         onClick={() => setIsOpen(true)}
