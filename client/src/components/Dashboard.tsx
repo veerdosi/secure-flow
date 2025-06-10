@@ -95,13 +95,56 @@ const Dashboard = ({ projectId: propProjectId, projectData }: DashboardProps) =>
     // Fetch fresh data if cache is stale or missing
     setLoading(true);
     try {
-      await fetchLatestAnalysis();
-    } catch (error) {
+      const analyses = await analysisAPI.getByProject(projectId as string, 1);
+
+      if (analyses && analyses.length > 0) {
+        const latestAnalysis = analyses[0];
+
+        const formattedAnalysis: SecurityAnalysis = {
+          id: latestAnalysis._id,
+          projectId: latestAnalysis.projectId,
+          commitHash: latestAnalysis.commitHash,
+          timestamp: latestAnalysis.createdAt,
+          securityScore: latestAnalysis.securityScore || 0,
+          threatLevel: latestAnalysis.threatLevel,
+          vulnerabilities: latestAnalysis.vulnerabilities || [],
+          threatModel: latestAnalysis.threatModel || { nodes: [], edges: [] },
+          aiAnalysis: latestAnalysis.aiAnalysis || '',
+          remediationSteps: latestAnalysis.remediationSteps || [],
+          complianceScore: latestAnalysis.complianceScore || {},
+          userId: latestAnalysis.userId || '',
+          status: latestAnalysis.status || 'COMPLETED',
+          proposedRemediations: latestAnalysis.proposedRemediations || [],
+          humanApproval: latestAnalysis.humanApproval
+        };
+
+        setAnalysis(formattedAnalysis);
+        
+        // Cache the analysis data
+        setAnalysisData(projectId as string, {
+          vulnerabilities: formattedAnalysis.vulnerabilities,
+          summary: {
+            securityScore: formattedAnalysis.securityScore,
+            threatLevel: formattedAnalysis.threatLevel,
+            aiAnalysis: formattedAnalysis.aiAnalysis,
+            complianceScore: formattedAnalysis.complianceScore
+          },
+          scanId: formattedAnalysis.id,
+          lastScan: Date.now()
+        });
+        
+        // Check if this analysis needs human approval
+        if (latestAnalysis.status === 'AWAITING_APPROVAL' && latestAnalysis.proposedRemediations?.length > 0) {
+          setPendingApproval(latestAnalysis);
+          setShowApprovalModal(true);
+        }
+      }
+    } catch (error: any) {
       setError('Failed to load analysis data');
     } finally {
       setLoading(false);
     }
-  }, [isReady, projectId, getAnalysisData, isStale]);
+  }, [isReady, projectId, getAnalysisData, isStale, setAnalysisData]);
 
   const fetchProjectData = async () => {
     if (!isReady) return;
@@ -167,6 +210,21 @@ const Dashboard = ({ projectId: propProjectId, projectData }: DashboardProps) =>
       // Error is handled gracefully by UI state, no need to log to console
     }
   }, [projectId, setAnalysisData]);
+
+  // Auto-refresh analysis data when the component becomes visible again
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && isReady) {
+        // Page became visible again, refresh analysis data
+        fetchLatestAnalysis();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [isReady, fetchLatestAnalysis]);
 
   const handleApprovalUpdate = () => {
     setShowApprovalModal(false);
@@ -391,6 +449,14 @@ const Dashboard = ({ projectId: propProjectId, projectData }: DashboardProps) =>
                 </button>
               )}
               <div className="flex gap-2">
+                <button
+                  onClick={fetchLatestAnalysis}
+                  disabled={loading}
+                  className="inline-flex items-center px-3 py-2 border border-gray-600 rounded-lg text-sm font-medium text-gray-300 bg-dark-card hover:bg-gray-800 hover:border-gray-500 transition-colors disabled:opacity-50"
+                >
+                  <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                  Refresh
+                </button>
                 <button
                   onClick={() => router.push(`/projects/${projectId}/settings`)}
                   className="inline-flex items-center px-3 py-2 border border-gray-600 rounded-lg text-sm font-medium text-gray-300 bg-dark-card hover:bg-gray-800 hover:border-gray-500 transition-colors"

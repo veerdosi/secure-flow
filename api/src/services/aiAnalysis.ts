@@ -81,11 +81,17 @@ class AIAnalysisService {
    * Enhanced code analysis with context awareness and specialized vulnerability detection
    */
   async analyzeCode(codeContent: string, filePath: string, context?: FileAnalysisContext): Promise<any> {
-    logger.info(`🔍 Starting AI analysis for ${filePath}`, {
+    const language = this.detectLanguage(filePath);
+    const framework = context?.framework || this.detectFramework(codeContent, language);
+    
+    logger.info(`🔍 SECURITY ANALYSIS: Analyzing ${filePath}`, {
+      file: filePath,
+      language,
+      framework,
       fileSize: typeof codeContent === 'string' ? codeContent.length : 'non-string',
       contentType: typeof codeContent,
-      language: this.detectLanguage(filePath),
-      hasContext: !!context
+      hasContext: !!context,
+      analysisType: 'STATIC_CODE_ANALYSIS'
     });
 
     if (!this.model) {
@@ -160,11 +166,19 @@ class AIAnalysisService {
 
       const analysis = this.parseAndValidateAnalysis(result, filePath);
       
-      logger.info(`📊 Analysis results for ${filePath}:`, {
+      logger.info(`📊 VULNERABILITY ANALYSIS COMPLETE: ${filePath}`, {
+        file: filePath,
+        language,
+        framework,
         vulnerabilities: analysis.vulnerabilities?.length || 0,
         securityScore: analysis.securityScore,
         threatLevel: analysis.threatLevel,
-        parseError: analysis.parseError || false
+        parseError: analysis.parseError || false,
+        analysisType: 'VULNERABILITY_DETECTION',
+        severityBreakdown: analysis.vulnerabilities?.reduce((acc: any, v: any) => {
+          acc[v.severity] = (acc[v.severity] || 0) + 1;
+          return acc;
+        }, {}) || {}
       });
       
       // Enhance analysis with context-specific checks
@@ -177,7 +191,18 @@ class AIAnalysisService {
       });
 
       this.setCachedResult(cacheKey, enhancedAnalysis);
-      logger.info(`✅ Enhanced AI analysis completed for ${filePath} (${language}/${framework})`);
+      logger.info(`✅ AI CODE ANALYSIS COMPLETED: ${filePath}`, {
+        file: filePath,
+        language,
+        framework,
+        analysisType: 'AI_ENHANCED_SECURITY_SCAN',
+        finalResults: {
+          vulnerabilityCount: enhancedAnalysis.vulnerabilities?.length || 0,
+          securityScore: enhancedAnalysis.securityScore,
+          threatLevel: enhancedAnalysis.threatLevel,
+          hasFrameworkSpecific: !!enhancedAnalysis.frameworkSpecific
+        }
+      });
       
       return enhancedAnalysis;
     } catch (error) {
@@ -235,10 +260,19 @@ class AIAnalysisService {
    * Enhanced threat modeling with architectural analysis
    */
   async generateThreatModel(codeFiles: string[], projectStructure: any, analysisHistory?: IAnalysis[]): Promise<any> {
-    logger.info(`🧠 Starting threat model generation`, {
+    logger.info(`🧠 THREAT MODEL GENERATION: Starting comprehensive threat analysis`, {
       codeFilesCount: codeFiles.length,
       projectStructure: Object.keys(projectStructure),
-      hasAnalysisHistory: !!analysisHistory?.length
+      hasAnalysisHistory: !!analysisHistory?.length,
+      analysisType: 'THREAT_MODELING',
+      projectScope: {
+        totalFiles: codeFiles.length,
+        fileTypes: codeFiles.reduce((acc: any, file) => {
+          const ext = file.split('.').pop() || 'unknown';
+          acc[ext] = (acc[ext] || 0) + 1;
+          return acc;
+        }, {})
+      }
     });
 
     if (!this.model) {
@@ -289,10 +323,20 @@ class AIAnalysisService {
       // Enhance with 3D visualization data for the frontend
       threatModel.visualization = this.generateVisualizationData(threatModel);
       
-      logger.info(`✅ Enhanced threat model generated`, {
-        components: threatModel.components?.length || 0,
-        threats: threatModel.threats?.length || 0,
-        hasVisualization: !!threatModel.visualization
+      logger.info(`✅ THREAT MODEL COMPLETE: Advanced security architecture analysis`, {
+        analysisType: 'THREAT_MODEL_GENERATION',
+        results: {
+          threatCount: threatModel.threats?.length || 0,
+          componentCount: threatModel.components?.length || 0,
+          dataFlowCount: threatModel.dataFlows?.length || 0,
+          hasVisualization: !!threatModel.visualization,
+          riskLevel: threatModel.riskAssessment?.overallRisk || 'UNKNOWN'
+        },
+        projectArchitecture: {
+          type: projectType,
+          securityPatterns: securityPatterns.length,
+          identifiedRisks: threatModel.threats?.filter((t: any) => t.severity === 'HIGH' || t.severity === 'CRITICAL').length || 0
+        }
       });
       
       return threatModel;
@@ -350,11 +394,16 @@ class AIAnalysisService {
    * Enhanced remediation with priority scoring and automated PR generation
    */
   async generateRemediationSteps(vulnerabilities: any[], projectContext?: any): Promise<any[]> {
-    logger.info(`🔧 Starting remediation generation`, {
+    logger.info(`🔧 REMEDIATION GENERATION: Creating automated security fixes`, {
+      analysisType: 'AUTOMATED_REMEDIATION',
       vulnerabilityCount: vulnerabilities.length,
       hasProjectContext: !!projectContext,
       severityCounts: vulnerabilities.reduce((acc: any, v) => {
         acc[v.severity] = (acc[v.severity] || 0) + 1;
+        return acc;
+      }, {}),
+      vulnerabilityTypes: vulnerabilities.reduce((acc: any, v) => {
+        acc[v.type] = (acc[v.type] || 0) + 1;
         return acc;
       }, {})
     });
@@ -406,13 +455,21 @@ class AIAnalysisService {
         prerequisites: this.identifyPrerequisites(step),
       }));
       
-      logger.info(`✅ Generated prioritized remediation steps`, {
-        totalSteps: enhancedSteps.length,
-        automatable: enhancedSteps.filter((s: any) => s.automationPossible).length,
-        effortBreakdown: enhancedSteps.reduce((acc: any, s: any) => {
-          acc[s.estimatedEffort] = (acc[s.estimatedEffort] || 0) + 1;
-          return acc;
-        }, {})
+      logger.info(`✅ REMEDIATION STEPS GENERATED: Automated security fix recommendations`, {
+        analysisType: 'REMEDIATION_PLANNING',
+        results: {
+          totalSteps: enhancedSteps.length,
+          automatable: enhancedSteps.filter((s: any) => s.automationPossible).length,
+          criticalRemediations: enhancedSteps.filter((s: any) => s.priority === 'CRITICAL').length,
+          effortBreakdown: enhancedSteps.reduce((acc: any, s: any) => {
+            acc[s.estimatedEffort] = (acc[s.estimatedEffort] || 0) + 1;
+            return acc;
+          }, {}),
+          riskLevels: enhancedSteps.reduce((acc: any, s: any) => {
+            acc[s.riskLevel] = (acc[s.riskLevel] || 0) + 1;
+            return acc;
+          }, {})
+        }
       });
       
       return enhancedSteps;

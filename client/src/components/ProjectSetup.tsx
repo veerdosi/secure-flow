@@ -64,10 +64,10 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({
     setDetectingBranch(true);
     try {
       // First try with GitLab API if access token is available
-      if (user?.gitlabSettings?.accessToken) {
+      if (user?.gitlabSettings?.apiToken) {
         const response = await fetch(`https://gitlab.com/api/v4/projects/${projectId}`, {
           headers: {
-            'Authorization': `Bearer ${user.gitlabSettings.accessToken}`
+            'Authorization': `Bearer ${user.gitlabSettings.apiToken}`
           }
         });
         

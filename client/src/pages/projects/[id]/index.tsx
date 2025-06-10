@@ -1,7 +1,7 @@
 import Head from 'next/head'
 import React, { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
-import { Shield, GitBranch, Plus, AlertCircle, Settings, ArrowLeft } from 'lucide-react'
+import { Shield, GitBranch, Plus, AlertCircle, Settings, ArrowLeft, FileText } from 'lucide-react'
 import { useUser, UserProfile } from '@/components/UserProvider'
 import Dashboard from '@/components/Dashboard'
 import ProjectSetup from '@/components/ProjectSetup'
@@ -342,6 +342,15 @@ export default function ProjectDetailPage({ projectId: propProjectId }: ProjectD
                   )}
                 </div>
                 <div className="flex items-center space-x-4">
+                  <motion.button
+                    onClick={() => router.push('/analysis')}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors flex items-center"
+                  >
+                    <FileText className="w-4 h-4 mr-2" />
+                    All Analyses
+                  </motion.button>
                   <motion.button
                     onClick={() => router.push('/projects')}
                     whileHover={{ scale: 1.05 }}

@@ -21,6 +21,7 @@ import {
   Zap,
   FileText,
   TrendingUp,
+  ArrowRight,
 } from 'lucide-react';
 
 const AnalysisPage: React.FC = () => {
@@ -452,18 +453,27 @@ const AnalysisPage: React.FC = () => {
           >
             {/* Success Banner */}
             <div className="bg-green-500/10 border border-green-500/50 rounded-xl p-6">
-              <div className="flex items-center">
-                <CheckCircle className="w-8 h-8 text-green-400 mr-4" />
-                <div>
-                  <h3 className="text-xl font-semibold text-white">Analysis Completed Successfully</h3>
-                  <p className="text-green-400">Your security analysis is ready. View the results below.</p>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <CheckCircle className="w-8 h-8 text-green-400 mr-4" />
+                  <div>
+                    <h3 className="text-xl font-semibold text-white">Analysis Completed Successfully</h3>
+                    <p className="text-green-400">Your security analysis is ready. View the results below.</p>
+                  </div>
                 </div>
-                <div className="ml-auto">
+                <div className="flex items-center space-x-3">
                   <button
                     onClick={() => project && router.push(`/projects/${project._id}`)}
-                    className="px-4 py-2 bg-cyber-blue text-black rounded-lg hover:bg-blue-600 transition-colors"
+                    className="px-4 py-2 bg-cyber-blue text-black rounded-lg hover:bg-blue-600 transition-colors flex items-center"
                   >
-                    View Dashboard
+                    <ArrowRight className="w-4 h-4 mr-2" />
+                    View Project Dashboard
+                  </button>
+                  <button
+                    onClick={() => router.push('/analysis')}
+                    className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+                  >
+                    All Analyses
                   </button>
                 </div>
               </div>
@@ -532,10 +542,51 @@ const AnalysisPage: React.FC = () => {
                   AI Analysis Summary
                 </h3>
                 <div className="prose prose-invert max-w-none">
-                  <p className="text-gray-300 leading-relaxed">
-                    {analysis.aiAnalysis || 'AI analysis is being processed...'}
-                  </p>
+                  {analysis.aiAnalysis && analysis.aiAnalysis.trim() ? (
+                    <div className="space-y-3">
+                      {analysis.aiAnalysis.split('\n').filter(line => line.trim()).map((paragraph, index) => (
+                        <p key={index} className="text-gray-300 leading-relaxed">
+                          {paragraph.trim()}
+                        </p>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-400 italic">AI analysis is being processed...</p>
+                  )}
                 </div>
+                
+                {/* Remediation Steps */}
+                {analysis.remediationSteps && analysis.remediationSteps.length > 0 && (
+                  <div className="mt-6">
+                    <h4 className="text-md font-semibold text-white mb-3">Recommended Actions</h4>
+                    <div className="space-y-2">
+                      {analysis.remediationSteps.slice(0, 3).map((step: any, index: number) => (
+                        <div key={index} className="flex items-start space-x-3 p-3 bg-dark-bg/50 rounded-lg">
+                          <div className="flex-shrink-0 w-6 h-6 bg-cyber-blue/20 rounded-full flex items-center justify-center">
+                            <span className="text-xs text-cyber-blue font-semibold">{index + 1}</span>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-300">{step.title || step.description}</p>
+                            {step.priority && (
+                              <span className={`inline-block mt-1 px-2 py-1 text-xs rounded ${
+                                step.priority === 'CRITICAL' ? 'bg-red-500/20 text-red-400' :
+                                step.priority === 'HIGH' ? 'bg-orange-500/20 text-orange-400' :
+                                'bg-yellow-500/20 text-yellow-400'
+                              }`}>
+                                {step.priority}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                      {analysis.remediationSteps.length > 3 && (
+                        <p className="text-xs text-gray-400 mt-2">
+                          +{analysis.remediationSteps.length - 3} more recommendations available
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </motion.div>

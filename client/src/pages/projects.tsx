@@ -13,7 +13,8 @@ import {
   Activity,
   TrendingUp,
   TrendingDown,
-  ArrowRight
+  ArrowRight,
+  FileText
 } from 'lucide-react'
 import { useUser, UserProfile } from '@/components/UserProvider'
 import GitLabSettings from '@/components/GitLabSettings'
@@ -207,6 +208,15 @@ export default function ProjectsPage() {
                 </div>
               </div>
               <div className="flex items-center space-x-4">
+                <motion.button
+                  onClick={() => router.push('/analysis')}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors flex items-center"
+                >
+                  <FileText className="w-4 h-4 mr-2" />
+                  View All Analyses
+                </motion.button>
                 <motion.button
                   onClick={() => setTriggerProjectSetup(true)}
                   whileHover={{ scale: 1.05 }}

@@ -212,10 +212,12 @@ router.post('/trigger-scheduled',
 
 // Background analysis processing
 async function processAnalysis(analysisId: string, projectId: string, commitHash?: string) {
-  logger.info(`🚀 Starting analysis process`, {
+  logger.info('🚀 SECURITY ANALYSIS INITIATED: Starting comprehensive security scan', {
     analysisId,
     projectId,
-    commitHash: commitHash || 'main'
+    commitHash: commitHash || 'main',
+    analysisType: 'FULL_SECURITY_SCAN',
+    timestamp: new Date().toISOString()
   });
 
   try {
@@ -256,24 +258,28 @@ async function processAnalysis(analysisId: string, projectId: string, commitHash
     });
 
     // Get project files using the actual GitLab project ID
-    logger.info(`📁 Fetching project files from GitLab`, {
+    logger.info('📁 CODE RETRIEVAL: Fetching project files from GitLab repository', {
       analysisId,
       mongoProjectId: projectId,
       gitlabProjectId: actualGitlabProjectId,
       commitHash: commitHash || 'main',
-      userId
+      userId,
+      analysisStage: 'CODE_FETCHING'
     });
 
     const files = await gitlabService.getProjectFiles(actualGitlabProjectId, userId, commitHash || 'main');
     
-    logger.info(`📁 Retrieved ${files.length} files from GitLab`, {
+    logger.info('📁 CODE ANALYSIS SCOPE: Retrieved project files for security scanning', {
       analysisId,
       projectId,
+      totalFiles: files.length,
+      analysisStage: 'STATIC_ANALYSIS_PREP',
       fileTypes: files.reduce((acc: any, f) => {
         const ext = f.path.split('.').pop() || 'unknown';
         acc[ext] = (acc[ext] || 0) + 1;
         return acc;
-      }, {})
+      }, {}),
+      scanScope: `${Math.min(files.length, 10)} files selected for deep analysis`
     });
 
     await Analysis.findByIdAndUpdate(analysisId, {
@@ -282,22 +288,26 @@ async function processAnalysis(analysisId: string, projectId: string, commitHash
     });
 
     // Analyze files
-    const allVulnerabilities = [];
+    const allVulnerabilities: any[] = [];
     let totalScore = 0;
     let fileCount = 0;
     let analysisErrors = 0;
 
-    logger.info(`🔍 Starting file analysis loop`, {
+    logger.info('🔍 VULNERABILITY SCANNING: Starting deep security analysis of code files', {
       analysisId,
       totalFiles: files.length,
-      analyzing: Math.min(files.length, 10)
+      analyzing: Math.min(files.length, 10),
+      analysisStage: 'VULNERABILITY_DETECTION',
+      scanningApproach: 'AI_POWERED_STATIC_ANALYSIS'
     });
 
     for (const [index, file] of files.slice(0, 10).entries()) {
-      logger.info(`📄 Analyzing file ${index + 1}/${Math.min(files.length, 10)}: ${file.path}`, {
+      logger.info(`📄 SCANNING: ${file.path} - AI security analysis in progress`, {
         analysisId,
         fileName: file.path,
-        fileSize: file.size || 'unknown'
+        fileIndex: `${index + 1}/${Math.min(files.length, 10)}`,
+        fileSize: file.size || 'unknown',
+        analysisType: 'STATIC_VULNERABILITY_SCAN'
       });
 
       try {
@@ -313,12 +323,14 @@ async function processAnalysis(analysisId: string, projectId: string, commitHash
         const aiStartTime = Date.now();
         const aiResult = await aiAnalysisService.analyzeCode(content, file.path);
         
-        logger.info(`🤖 AI analysis completed for ${file.path}`, {
+        logger.info('🤖 AI VULNERABILITY DETECTION: Security analysis completed for ' + file.path, {
           analysisId,
+          fileName: file.path,
           aiProcessingTime: Date.now() - aiStartTime,
           vulnerabilities: aiResult.vulnerabilities?.length || 0,
           securityScore: aiResult.securityScore,
-          threatLevel: aiResult.threatLevel || 'unknown'
+          threatLevel: aiResult.threatLevel || 'unknown',
+          analysisType: 'AI_SECURITY_ANALYSIS'
         });
 
         if (aiResult.vulnerabilities) {
@@ -330,12 +342,18 @@ async function processAnalysis(analysisId: string, projectId: string, commitHash
           
           allVulnerabilities.push(...vulnerabilities);
           
-          logger.info(`📝 Added vulnerabilities from ${file.path}`, {
+          logger.info('📝 VULNERABILITIES FOUND: Security issues detected in ' + file.path, {
             analysisId,
+            fileName: file.path,
             newVulns: vulnerabilities.length,
             totalVulns: allVulnerabilities.length,
+            analysisType: 'VULNERABILITY_CLASSIFICATION',
             severities: vulnerabilities.reduce((acc: Record<string, number>, v: any) => {
               acc[v.severity] = (acc[v.severity] || 0) + 1;
+              return acc;
+            }, {}),
+            vulnerabilityTypes: vulnerabilities.reduce((acc: Record<string, number>, v: any) => {
+              acc[v.type] = (acc[v.type] || 0) + 1;
               return acc;
             }, {})
           });
@@ -354,12 +372,17 @@ async function processAnalysis(analysisId: string, projectId: string, commitHash
       }
     }
 
-    logger.info(`📊 File analysis complete`, {
+    logger.info('📊 VULNERABILITY ANALYSIS SUMMARY: Security scan completed', {
       analysisId,
+      analysisStage: 'VULNERABILITY_ANALYSIS_COMPLETE',
       filesAnalyzed: fileCount,
       analysisErrors,
       totalVulnerabilities: allVulnerabilities.length,
-      averageScore: fileCount > 0 ? Math.round(totalScore / fileCount) : 50
+      averageScore: fileCount > 0 ? Math.round(totalScore / fileCount) : 50,
+      criticalVulns: allVulnerabilities.filter(v => v.severity === 'CRITICAL').length,
+      highVulns: allVulnerabilities.filter(v => v.severity === 'HIGH').length,
+      mediumVulns: allVulnerabilities.filter(v => v.severity === 'MEDIUM').length,
+      lowVulns: allVulnerabilities.filter(v => v.severity === 'LOW').length
     });
 
     await Analysis.findByIdAndUpdate(analysisId, {
@@ -368,9 +391,10 @@ async function processAnalysis(analysisId: string, projectId: string, commitHash
     });
 
     // Generate threat model
-    logger.info(`🧠 Generating threat model`, {
+    logger.info('🧠 THREAT MODELING: Generating comprehensive security architecture analysis', {
       analysisId,
-      filesCount: files.length
+      filesCount: files.length,
+      analysisStage: 'THREAT_MODEL_GENERATION'
     });
 
     const threatModel = await aiAnalysisService.generateThreatModel(
@@ -378,7 +402,7 @@ async function processAnalysis(analysisId: string, projectId: string, commitHash
       { projectId, fileCount: files.length }
     );
 
-    logger.info(`✅ Threat model generated`, {
+    logger.info('✅ Threat model generated', {
       analysisId,
       components: threatModel.components?.length || 0,
       threats: threatModel.threats?.length || 0
@@ -395,17 +419,24 @@ async function processAnalysis(analysisId: string, projectId: string, commitHash
                        allVulnerabilities.some(v => v.severity === 'HIGH') ? 'HIGH' :
                        allVulnerabilities.some(v => v.severity === 'MEDIUM') ? 'MEDIUM' : 'LOW';
 
-    logger.info(`📈 Final scores calculated`, {
+    logger.info('📈 SECURITY SCORING: Final threat assessment and security metrics calculated', {
       analysisId,
       avgScore,
       threatLevel,
-      totalVulns: allVulnerabilities.length
+      totalVulns: allVulnerabilities.length,
+      analysisStage: 'SECURITY_ASSESSMENT_COMPLETE',
+      riskFactors: {
+        criticalIssues: allVulnerabilities.filter(v => v.severity === 'CRITICAL').length,
+        highRiskIssues: allVulnerabilities.filter(v => v.severity === 'HIGH').length,
+        overallThreatLevel: threatLevel
+      }
     });
 
     // Generate remediation steps
-    logger.info(`🔧 Generating remediation steps`, {
+    logger.info('🔧 REMEDIATION PLANNING: Generating automated security fix recommendations', {
       analysisId,
-      vulnerabilityCount: allVulnerabilities.length
+      vulnerabilityCount: allVulnerabilities.length,
+      analysisStage: 'REMEDIATION_GENERATION'
     });
 
     const remediationSteps = await aiAnalysisService.generateRemediationSteps(allVulnerabilities);
@@ -413,7 +444,7 @@ async function processAnalysis(analysisId: string, projectId: string, commitHash
     // Generate automated remediation actions
     const remediationActions = await remediationService.generateRemediationActions(allVulnerabilities, files);
 
-    logger.info(`🛠️ Remediation generated`, {
+    logger.info('🛠️ Remediation generated', {
       analysisId,
       remediationSteps: remediationSteps.length,
       automatedActions: remediationActions.length
@@ -451,15 +482,18 @@ async function processAnalysis(analysisId: string, projectId: string, commitHash
     );
 
     const finalStatus = needsApproval ? 'AWAITING_APPROVAL' : 'COMPLETED';
-
-    logger.info(`💾 Saving final analysis results`, {
+    
+    logger.info('💾 ANALYSIS COMPLETE: Saving comprehensive security analysis results', {
       analysisId,
       status: finalStatus,
       needsApproval,
       avgScore,
       threatLevel,
       vulnerabilityCount: allVulnerabilities.length,
-      remediationActions: remediationActions.length
+      remediationActions: remediationActions.length,
+      analysisStage: 'RESULTS_FINALIZATION',
+      analysisType: 'COMPREHENSIVE_SECURITY_SCAN',
+      completionStatus: needsApproval ? 'AWAITING_HUMAN_APPROVAL' : 'FULLY_AUTOMATED'
     });
 
     // Final update
@@ -481,7 +515,38 @@ async function processAnalysis(analysisId: string, projectId: string, commitHash
         requestedChanges: []
       },
       autoRemediationEnabled: false, // Default to requiring approval
-      aiAnalysis: `Analysis completed. Found ${allVulnerabilities.length} vulnerabilities across ${fileCount} files. ${needsApproval ? 'Human approval required for remediation.' : ''}`,
+      aiAnalysis: `🔍 SECURITY ANALYSIS COMPLETE
+
+📊 SCAN RESULTS:
+• Analyzed ${fileCount} files from your repository
+• Found ${allVulnerabilities.length} security vulnerabilities
+• Security Score: ${avgScore}/100
+• Threat Level: ${threatLevel}
+
+⚠️ VULNERABILITY BREAKDOWN:
+• Critical: ${allVulnerabilities.filter(v => v.severity === 'CRITICAL').length}
+• High: ${allVulnerabilities.filter(v => v.severity === 'HIGH').length}
+• Medium: ${allVulnerabilities.filter(v => v.severity === 'MEDIUM').length}
+• Low: ${allVulnerabilities.filter(v => v.severity === 'LOW').length}
+
+🛠️ REMEDIATION STATUS:
+${needsApproval ? `• ${remediationActions.length} automated fixes available
+• Human approval required for critical security patches
+• Review recommended actions in the dashboard` : `• No immediate critical remediations required
+• Continue monitoring with regular security scans`}
+
+📈 SECURITY POSTURE:
+${
+  avgScore >= 80
+    ? '• Excellent security posture - keep up the good work!'
+    : avgScore >= 60
+    ? '• Good security foundation with room for improvement'
+    : avgScore >= 40
+    ? '• Moderate security risks - recommend addressing high-priority issues'
+    : '• Significant security concerns - immediate attention required'
+}
+
+Next Steps: Review the detailed vulnerability report and implement recommended security fixes.`,
       complianceScore: {
         owasp: Math.max(0, (avgScore - 20) / 80),
         pci: Math.max(0, (avgScore - 30) / 70),
@@ -492,18 +557,14 @@ async function processAnalysis(analysisId: string, projectId: string, commitHash
       history: [historyEntry],
       completedAt: needsApproval ? undefined : new Date(),
     });
-
-    if (needsApproval) {
-      logger.info(`✅ Analysis ${analysisId} completed - awaiting human approval for ${remediationActions.length} remediation actions`);
-    } else {
-      logger.info(`✅ Analysis ${analysisId} completed successfully with no remediations needed`);
-    }
   } catch (error) {
-    logger.error(`💥 Analysis ${analysisId} failed:`, {
+    logger.error(`💥 SECURITY ANALYSIS FAILED: Critical error in analysis ${analysisId}`, {
       analysisId,
       projectId,
       error: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined
+      stack: error instanceof Error ? error.stack : undefined,
+      analysisType: 'COMPREHENSIVE_SECURITY_SCAN',
+      failureStage: 'ANALYSIS_EXECUTION'
     });
 
     await Analysis.findByIdAndUpdate(analysisId, {
