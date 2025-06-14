@@ -1,0 +1,48 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: SecureFlow Webhook Handler Lambda Function
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 512
+    Runtime: nodejs20.x
+    Environment:
+      Variables:
+        NODE_ENV: production
+
+Resources:
+  WebhookHandlerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: index.webhookHandler
+      Environment:
+        Variables:
+          MONGODB_URI: !Ref MongoDBURI
+      Events:
+        WebhookAPI:
+          Type: Api
+          Properties:
+            Path: /webhook
+            Method: POST
+        WebhookAPIOptions:
+          Type: Api
+          Properties:
+            Path: /webhook
+            Method: OPTIONS
+
+Parameters:
+  MongoDBURI:
+    Type: String
+    Description: MongoDB connection string
+    NoEcho: true
+    Default: "mongodb+srv://veerdosi00:veerveer@cluster0.mavhzaj.mongodb.net/Secure-Flow?retryWrites=true&w=majority&appName=Cluster0"
+
+Outputs:
+  WebhookUrl:
+    Description: "Webhook endpoint URL for GitLab integration"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/webhook"
+  ApiGatewayId:
+    Description: "API Gateway ID for reference"
+    Value: !Ref ServerlessRestApi

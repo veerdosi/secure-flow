@@ -1,0 +1,135 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: SecureFlow Main API Lambda Function - Security-Compliant CORS Configuration
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 1024
+    Environment:
+      Variables:
+        NODE_ENV: production
+
+Resources:
+  # Lambda Function - Primary Resource
+  SecureFlowMainAPI:
+    Type: AWS::Serverless::Function
+    Properties:
+      PackageType: Image
+      ImageConfig:
+        Command: ["node", "dist/index.js"]
+      Environment:
+        Variables:
+          MONGODB_URI: !Ref MongoDBURI
+          JWT_SECRET: !Ref JWTSecret
+          GEMINI_API_KEY: !Ref GeminiAPIKey
+          GOOGLE_CLIENT_ID: !Ref GoogleClientID
+          GOOGLE_CLIENT_SECRET: !Ref GoogleClientSecret
+          CLIENT_URL: !Ref ClientURL
+          API_BASE_URL: !Sub "https://${SecureFlowApiGateway}.execute-api.${AWS::Region}.amazonaws.com/Prod"
+    Metadata:
+      Dockerfile: Dockerfile
+      DockerContext: .
+
+  # API Gateway - Security-Compliant Configuration
+  SecureFlowApiGateway:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: Prod
+      Cors:
+        AllowMethods: "'GET,POST,PUT,DELETE,PATCH,OPTIONS'"
+        AllowHeaders: "'Content-Type,Authorization,X-Requested-With,X-GitLab-Event'"
+        AllowOrigin: !Sub "'${ClientURL}'"
+        AllowCredentials: true
+        MaxAge: "'600'"
+      DefinitionBody:
+        swagger: "2.0"
+        info:
+          title: SecureFlow Main API
+          version: "1.0"
+        paths:
+          /{proxy+}:
+            x-amazon-apigateway-any-method:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${SecureFlowMainAPI.Arn}/invocations"
+              responses: {}
+          /:
+            x-amazon-apigateway-any-method:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${SecureFlowMainAPI.Arn}/invocations"
+              responses: {}
+
+  # Lambda Permissions - Explicit Definition
+  ApiGatewayInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref SecureFlowMainAPI
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "${SecureFlowApiGateway}/*/ANY/*"
+
+  ApiGatewayRootInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref SecureFlowMainAPI
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "${SecureFlowApiGateway}/*/ANY/"
+
+Parameters:
+  MongoDBURI:
+    Type: String
+    Description: MongoDB connection string
+    NoEcho: true
+    Default: "mongodb+srv://veerdosi00:veerveer@cluster0.mavhzaj.mongodb.net/Secure-Flow?retryWrites=true&w=majority&appName=Cluster0"
+  
+  JWTSecret:
+    Type: String
+    Description: JWT secret key for authentication
+    NoEcho: true
+    Default: "edaed40c257658ca7ec6930884b888a713cfd97024aa5b8d68905ea41670b692a9ae3eae3ea824d8bd5204cd1a0afbc56d6f3344f32f6787723086fa547e72b4"
+  
+  GeminiAPIKey:
+    Type: String
+    Description: Google Gemini API key for AI analysis
+    NoEcho: true
+    Default: "AIzaSyAmscjuIGG7gz7T_5K8aXw-KD0VkSpxakw"
+  
+  GoogleClientID:
+    Type: String
+    Description: Google OAuth Client ID
+    Default: "714013846272-cndmh92r1uogrembg4ii5opuaj7bcpu3.apps.googleusercontent.com"
+  
+  GoogleClientSecret:
+    Type: String
+    Description: Google OAuth Client Secret
+    NoEcho: true
+    Default: "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"
+  
+  ClientURL:
+    Type: String
+    Description: Frontend client URL for CORS configuration
+    Default: "https://secure-flow-landing.vercel.app"
+
+Outputs:
+  ApiGatewayUrl:
+    Description: "Main API Gateway endpoint URL"
+    Value: !Sub "https://${SecureFlowApiGateway}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
+    Export:
+      Name: !Sub "${AWS::StackName}-ApiUrl"
+  
+  FunctionName:
+    Description: "Main API Lambda function name"
+    Value: !Ref SecureFlowMainAPI
+    Export:
+      Name: !Sub "${AWS::StackName}-FunctionName"
+  
+  ApiGatewayId:
+    Description: "API Gateway ID for reference"
+    Value: !Ref SecureFlowApiGateway
+    Export:
+      Name: !Sub "${AWS::StackName}-ApiId"

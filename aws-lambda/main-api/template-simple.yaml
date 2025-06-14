@@ -1,0 +1,68 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: SecureFlow API - Minimalist SAM Template
+
+Parameters:
+  MongoDBURI:
+    Type: String
+    NoEcho: true
+    Default: "mongodb+srv://veerdosi00:veerveer@cluster0.mavhzaj.mongodb.net/Secure-Flow?retryWrites=true&w=majority&appName=Cluster0"
+  JWTSecret:
+    Type: String
+    NoEcho: true
+    Default: "edaed40c257658ca7ec6930884b888a713cfd97024aa5b8d68905ea41670b692a9ae3eae3ea824d8bd5204cd1a0afbc56d6f3344f32f6787723086fa547e72b4"
+  GeminiAPIKey:
+    Type: String
+    NoEcho: true
+    Default: "AIzaSyAmscjuIGG7gz7T_5K8aXw-KD0VkSpxakw"
+  GoogleClientID:
+    Type: String
+    Default: "714013846272-cndmh92r1uogrembg4ii5opuaj7bcpu3.apps.googleusercontent.com"
+  GoogleClientSecret:
+    Type: String
+    NoEcho: true
+    Default: "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"
+  ClientURL:
+    Type: String
+    Default: "https://secure-flow-landing.vercel.app"
+
+Resources:
+  SecureFlowAPI:
+    Type: AWS::Serverless::Function
+    Properties:
+      PackageType: Image
+      Timeout: 30
+      MemorySize: 1024
+      Environment:
+        Variables:
+          MONGODB_URI: !Ref MongoDBURI
+          JWT_SECRET: !Ref JWTSecret
+          GEMINI_API_KEY: !Ref GeminiAPIKey
+          GOOGLE_CLIENT_ID: !Ref GoogleClientID
+          GOOGLE_CLIENT_SECRET: !Ref GoogleClientSecret
+          CLIENT_URL: !Ref ClientURL
+          NODE_ENV: production
+    Metadata:
+      Dockerfile: Dockerfile
+      DockerContext: .
+
+  SecureFlowAPIUrl:
+    Type: AWS::Lambda::Url
+    Properties:
+      TargetFunctionArn: !Ref SecureFlowAPI
+      AuthType: NONE
+      Cors:
+        AllowOrigins:
+          - "*"
+        AllowMethods:
+          - "*"
+        AllowHeaders:
+          - "*"
+
+Outputs:
+  FunctionUrl:
+    Description: "Lambda Function URL"
+    Value: !GetAtt SecureFlowAPIUrl.FunctionUrl
+  FunctionName:
+    Description: "Lambda Function Name"
+    Value: !Ref SecureFlowAPI

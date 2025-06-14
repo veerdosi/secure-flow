@@ -1,0 +1,41 @@
+FROM public.ecr.aws/docker/library/node:20-slim AS builder
+
+# Copy AWS Lambda Web Adapter binary
+COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:0.9.1 /lambda-adapter /opt/extensions/lambda-adapter
+
+WORKDIR "/build"
+
+# Copy package files and install dependencies
+COPY src/package*.json ./
+RUN npm install
+
+# Copy source code maintaining directory structure  
+COPY src/ ./src/
+COPY src/tsconfig.json ./
+
+# Build TypeScript with original configuration
+RUN npx tsc --project tsconfig.json
+
+# Production stage with optimized structure
+FROM public.ecr.aws/docker/library/node:20-slim
+
+# Copy Lambda Web Adapter
+COPY --from=builder /opt/extensions/lambda-adapter /opt/extensions/lambda-adapter
+
+# Set environment variables for Lambda Adapter
+ENV PORT=8080
+ENV AWS_LWA_READINESS_CHECK_PROTOCOL=tcp
+ENV NODE_ENV=production
+
+WORKDIR "/var/task"
+
+# Copy built JavaScript from builder stage
+COPY --from=builder /build/dist/ ./
+COPY --from=builder /build/node_modules/ ./node_modules/
+COPY --from=builder /build/package.json ./
+
+# Expose port for local testing
+EXPOSE 8080
+
+# Start the Express.js application
+CMD ["node", "index.js"]

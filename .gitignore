@@ -1,3 +1,56 @@
+# AWS SAM Build Artifacts
+.aws-sam/
+samconfig.toml
+.aws-sam-cache/
+
+# AWS CloudFormation Stack Outputs
+stack-outputs.json
+cloudformation-outputs.json
+
+# AWS CLI Configuration (if accidentally created in project)
+.aws/
+aws-exports.js
+
+# ECR Repository Configuration
+ecr-repository-info.json
+
+# Lambda Deployment Packages
+*.zip
+deployment-packages/
+
+# SAM Local Environment
+.sam-local/
+
+# Docker Build Context
+.docker/
+docker-compose.override.yml
+
+# Container Runtime Artifacts
+.dockerignore.bak
+Dockerfile.backup
+
+# Environment Variables with Secrets
+.env.aws
+.env.production
+.env.lambda
+
+# JWT Secrets and API Keys (backup files)
+*.key
+*.pem
+secrets.json
+
+# TypeScript Build Outputs (Lambda functions)
+aws-lambda/*/dist/
+aws-lambda/*/build/
+
+# Node.js Dependencies
+aws-lambda/*/node_modules/
+
+# Log Files
+aws-lambda/*/*.log
+cloudwatch-logs/
+lambda-logs/
+
 # Dependencies
 node_modules/
 npm-debug.log*

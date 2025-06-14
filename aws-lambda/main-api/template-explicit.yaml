@@ -1,0 +1,170 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: SecureFlow API - Explicit Resource Architecture (Cache-Independent)
+
+Parameters:
+  MongoDBURI:
+    Type: String
+    Description: MongoDB connection string
+    NoEcho: true
+  
+  JWTSecret:
+    Type: String
+    Description: JWT secret key for authentication
+    NoEcho: true
+  
+  GeminiAPIKey:
+    Type: String
+    Description: Google Gemini API key for AI analysis
+    NoEcho: true
+  
+  GoogleClientID:
+    Type: String
+    Description: Google OAuth Client ID
+  
+  GoogleClientSecret:
+    Type: String
+    Description: Google OAuth Client Secret
+    NoEcho: true
+  
+  ClientURL:
+    Type: String
+    Description: Frontend client URL for CORS configuration
+
+Resources:
+  # Lambda Execution Role - Explicit Definition
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: CloudWatchLogsPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: '*'
+
+  # Lambda Function - Container-based with explicit role
+  SecureFlowMainAPIFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-main-api"
+      PackageType: Image
+      Code:
+        ImageUri: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/secureflowmainapi538ec29b/secureflowmainapi7405062frepo:latest"
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 30
+      MemorySize: 1024
+      Environment:
+        Variables:
+          NODE_ENV: production
+          PORT: "8080"
+          MONGODB_URI: !Ref MongoDBURI
+          JWT_SECRET: !Ref JWTSecret
+          GEMINI_API_KEY: !Ref GeminiAPIKey
+          GOOGLE_CLIENT_ID: !Ref GoogleClientID
+          GOOGLE_CLIENT_SECRET: !Ref GoogleClientSecret
+          CLIENT_URL: !Ref ClientURL
+
+  # API Gateway - Completely explicit definition
+  MainAPIGateway:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: !Sub "${AWS::StackName}-api"
+      Description: SecureFlow Main API Gateway
+      EndpointConfiguration:
+        Types:
+          - EDGE
+
+  # API Gateway Resource for proxy paths
+  ProxyResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref MainAPIGateway
+      ParentId: !GetAtt MainAPIGateway.RootResourceId
+      PathPart: "{proxy+}"
+
+  # API Gateway Method for root path
+  RootMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref MainAPIGateway
+      ResourceId: !GetAtt MainAPIGateway.RootResourceId
+      HttpMethod: ANY
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${SecureFlowMainAPIFunction.Arn}/invocations"
+
+  # API Gateway Method for proxy paths
+  ProxyMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref MainAPIGateway
+      ResourceId: !Ref ProxyResource
+      HttpMethod: ANY
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${SecureFlowMainAPIFunction.Arn}/invocations"
+
+  # API Gateway Deployment
+  APIDeployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn:
+      - RootMethod
+      - ProxyMethod
+    Properties:
+      RestApiId: !Ref MainAPIGateway
+      StageName: Prod
+
+  # Lambda Permissions for API Gateway
+  RootInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref SecureFlowMainAPIFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "${MainAPIGateway}/*/ANY/"
+
+  ProxyInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref SecureFlowMainAPIFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "${MainAPIGateway}/*/ANY/*"
+
+Outputs:
+  ApiGatewayUrl:
+    Description: "API Gateway endpoint URL"
+    Value: !Sub "https://${MainAPIGateway}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
+    Export:
+      Name: !Sub "${AWS::StackName}-ApiUrl"
+  
+  FunctionName:
+    Description: "Lambda function name"
+    Value: !Ref SecureFlowMainAPIFunction
+    Export:
+      Name: !Sub "${AWS::StackName}-FunctionName"
+  
+  ApiGatewayId:
+    Description: "API Gateway ID"
+    Value: !Ref MainAPIGateway
+    Export:
+      Name: !Sub "${AWS::StackName}-ApiId"
