@@ -383,9 +383,9 @@ export default function ProjectDetailPage({ projectId: propProjectId }: ProjectD
 
           {triggerProjectSetup && (
             <ProjectSetup
-              onProjectCreated={handleProjectCreated}
-              triggerOpen={triggerProjectSetup}
-              onClose={() => setTriggerProjectSetup(false)}
+            onProjectCreated={handleProjectCreated}
+            isOpen={triggerProjectSetup}
+            onClose={() => setTriggerProjectSetup(false)}
             />
           )}
 

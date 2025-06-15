@@ -97,7 +97,8 @@ export default function AnalysisHistory({ projectId, timeRange = 30 }: { project
     );
   }
 
-  const recentHistory = data.history.slice(0, 5);
+  // Defensively access data.history, providing a fallback empty array.
+  const recentHistory = data?.history?.slice(0, 5) || [];
 
   return (
     <>
@@ -177,7 +178,7 @@ export default function AnalysisHistory({ projectId, timeRange = 30 }: { project
         </div>
       </div>
 
-      {data.history.length === 0 && (
+      {data?.history?.length === 0 && (
         <div className="text-center py-8">
           <Calendar className="w-12 h-12 text-gray-600 mx-auto mb-3" />
           <p className="text-gray-400 text-sm">No analysis history available</p>
