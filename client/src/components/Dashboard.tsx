@@ -43,7 +43,7 @@ const Dashboard = ({ projectId: propProjectId, projectData }: DashboardProps) =>
   const projectId = propProjectId || routerProjectId;
   
   const { getAnalysisData, setAnalysisData, refreshAnalysis, isStale } = useAnalysisData();
-  useWebhookHandler(); // Enable real-time updates
+  useWebhookHandler(); // Re-enabled with SWR error handling
   
   const [analysis, setAnalysis] = useState<SecurityAnalysis | null>(null);
   const [project, setProject] = useState<Project | null>(projectData || null);
@@ -70,12 +70,30 @@ const Dashboard = ({ projectId: propProjectId, projectData }: DashboardProps) =>
   }, [projectData]);
 
   useEffect(() => {
-    if (isReady) {
-      if (!projectData) {
-        fetchProjectData();
+    let isMounted = true;
+    
+    const loadData = async () => {
+      if (!isReady || !isMounted) return;
+      
+      try {
+        if (!projectData) {
+          await fetchProjectData();
+        }
+        if (isMounted) {
+          await loadAnalysisData();
+        }
+      } catch (error) {
+        if (isMounted) {
+          console.error('Error loading dashboard data:', error);
+        }
       }
-      loadAnalysisData();
-    }
+    };
+    
+    loadData();
+    
+    return () => {
+      isMounted = false;
+    };
   }, [isReady, projectData]);
 
   const loadAnalysisData = useCallback(async () => {
@@ -97,24 +115,37 @@ const Dashboard = ({ projectId: propProjectId, projectData }: DashboardProps) =>
     try {
       const analyses = await analysisAPI.getByProject(projectId as string, 1);
 
-      if (analyses && analyses.length > 0) {
+      if (analyses && Array.isArray(analyses) && analyses.length > 0) {
         const latestAnalysis = analyses[0];
+        
+        if (!latestAnalysis) {
+          setAnalysis(null);
+          setLoading(false);
+          return;
+        }
 
         const formattedAnalysis: SecurityAnalysis = {
-          id: latestAnalysis._id,
-          projectId: latestAnalysis.projectId,
-          commitHash: latestAnalysis.commitHash,
-          timestamp: latestAnalysis.createdAt,
-          securityScore: latestAnalysis.securityScore || 0,
-          threatLevel: latestAnalysis.threatLevel,
-          vulnerabilities: latestAnalysis.vulnerabilities || [],
-          threatModel: latestAnalysis.threatModel || { nodes: [], edges: [] },
-          aiAnalysis: latestAnalysis.aiAnalysis || '',
-          remediationSteps: latestAnalysis.remediationSteps || [],
-          complianceScore: latestAnalysis.complianceScore || {},
+          id: latestAnalysis._id || '',
+          projectId: latestAnalysis.projectId || projectId as string,
+          commitHash: latestAnalysis.commitHash || '',
+          timestamp: latestAnalysis.createdAt || new Date().toISOString(),
+          securityScore: typeof latestAnalysis.securityScore === 'number' ? latestAnalysis.securityScore : 0,
+          threatLevel: latestAnalysis.threatLevel || 'LOW',
+          vulnerabilities: Array.isArray(latestAnalysis.vulnerabilities) ? latestAnalysis.vulnerabilities : [],
+          threatModel: latestAnalysis.threatModel && typeof latestAnalysis.threatModel === 'object' 
+            ? { 
+                nodes: Array.isArray(latestAnalysis.threatModel.nodes) ? latestAnalysis.threatModel.nodes : [],
+                edges: Array.isArray(latestAnalysis.threatModel.edges) ? latestAnalysis.threatModel.edges : [],
+                ...latestAnalysis.threatModel
+              }
+            : { nodes: [], edges: [] },
+          aiAnalysis: typeof latestAnalysis.aiAnalysis === 'string' ? latestAnalysis.aiAnalysis : '',
+          remediationSteps: Array.isArray(latestAnalysis.remediationSteps) ? latestAnalysis.remediationSteps : [],
+          complianceScore: latestAnalysis.complianceScore && typeof latestAnalysis.complianceScore === 'object' 
+            ? latestAnalysis.complianceScore : {},
           userId: latestAnalysis.userId || '',
           status: latestAnalysis.status || 'COMPLETED',
-          proposedRemediations: latestAnalysis.proposedRemediations || [],
+          proposedRemediations: Array.isArray(latestAnalysis.proposedRemediations) ? latestAnalysis.proposedRemediations : [],
           humanApproval: latestAnalysis.humanApproval
         };
 

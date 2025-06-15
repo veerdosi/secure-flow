@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { useAnalysisData } from './useAnalysisData'
-import { notificationAPI, handleApiError } from '../utils/api'
+import { useCallback } from 'react'
+import useSWR from 'swr'
+import { notificationAPI } from '../utils/api'
 
 interface Notification {
   _id: string
@@ -11,90 +11,79 @@ interface Notification {
   createdAt: string
 }
 
+interface NotificationResponse {
+  notifications: Notification[]
+  unreadCount: number
+}
+
+const fetcher = async (): Promise<NotificationResponse> => {
+  try {
+    const data = await notificationAPI.getAll({
+      unread: true,
+      limit: 50
+    })
+    
+    // Validate response structure
+    if (!data || typeof data !== 'object') {
+      return { notifications: [], unreadCount: 0 }
+    }
+    
+    return {
+      notifications: Array.isArray(data.notifications) ? data.notifications : [],
+      unreadCount: typeof data.unreadCount === 'number' ? data.unreadCount : 0
+    }
+  } catch (error: any) {
+    // Handle auth errors gracefully
+    if (error?.response?.status === 401) {
+      return { notifications: [], unreadCount: 0 }
+    }
+    // Return empty data for any other errors
+    console.warn('Notification fetch error:', error?.message || 'Unknown error')
+    return { notifications: [], unreadCount: 0 }
+  }
+}
+
 export const useNotificationPolling = () => {
-  const { invalidate } = useAnalysisData()
-  const [notifications, setNotifications] = useState<Notification[]>([])
-  const [unreadCount, setUnreadCount] = useState(0)
-  const [error, setError] = useState<string | null>(null)
-  const intervalRef = useRef<NodeJS.Timeout | null>(null)
-  const lastPolledRef = useRef<Date>(new Date())
-
-  const fetchNotifications = useCallback(async () => {
-    try {
-      setError(null)
-      const data = await notificationAPI.getAll({
-        unread: true,
-        limit: 50
-      })
-      // Add a defensive check to ensure the API returned the expected data structure
-      if (!data || !data.notifications) {
-        console.warn('Received invalid data from notification API, skipping update.');
-        if (data && data.error === 'Invalid token') {
-            stopPolling();
-        }
-        return;
-      }
-      const newNotifications = data.notifications.filter(
-        (n: Notification) => new Date(n.createdAt) > lastPolledRef.current
-      )
-
-      newNotifications.forEach((notification: Notification) => {
-        if (notification.projectId) {
-          console.log(`${notification.type} for project ${notification.projectId}`)
-          invalidate(notification.projectId)
-        }
-      })
-
-      setNotifications(data.notifications)
-      setUnreadCount(data.unreadCount)
-      lastPolledRef.current = new Date()
-    } catch (error: any) {
-      const errorMessage = handleApiError(error)
-      console.error('Failed to fetch notifications:', errorMessage)
-      setError(errorMessage)
-      
-      // If it's an auth error, stop polling to prevent spam
-      if (error.response?.status === 401) {
-        stopPolling()
+  const { data, error, mutate } = useSWR<NotificationResponse>(
+    'notifications',
+    fetcher,
+    {
+      refreshInterval: 10000, // Poll every 10 seconds
+      revalidateOnFocus: false,
+      revalidateOnReconnect: true,
+      shouldRetryOnError: false, // Don't retry on errors to prevent spam
+      fallbackData: { notifications: [], unreadCount: 0 },
+      onError: (err) => {
+        // Silently handle errors
+        console.warn('SWR notification error:', err?.message || 'Unknown error')
       }
     }
-  }, [invalidate])
+  )
 
   const markAsRead = useCallback(async (notificationIds?: string[], markAll: boolean = false) => {
     try {
       await notificationAPI.markAsRead({ notificationIds, markAll })
       // Refresh notifications after marking as read
-      await fetchNotifications()
+      mutate()
     } catch (error: any) {
-      const errorMessage = handleApiError(error)
-      console.error('Failed to mark notifications as read:', errorMessage)
-      setError(errorMessage)
+      console.warn('Failed to mark notifications as read:', error?.message || 'Unknown error')
     }
-  }, [fetchNotifications])
+  }, [mutate])
 
   const startPolling = useCallback(() => {
-    if (intervalRef.current) return
-    fetchNotifications()
-    intervalRef.current = setInterval(fetchNotifications, 10000)
-  }, [fetchNotifications])
+    // SWR handles polling automatically with refreshInterval
+    mutate()
+  }, [mutate])
 
   const stopPolling = useCallback(() => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current)
-      intervalRef.current = null
-    }
+    // Can't easily stop SWR polling, but errors are handled gracefully
   }, [])
 
-  useEffect(() => {
-    startPolling()
-    return () => stopPolling()
-  }, [startPolling, stopPolling])
-
   return {
-    notifications,
-    unreadCount,
-    error,
-    fetchNotifications,
+    notifications: data?.notifications || [],
+    unreadCount: data?.unreadCount || 0,
+    error: error ? 'Failed to load notifications' : null,
+    fetchNotifications: mutate,
     markAsRead,
     startPolling,
     stopPolling

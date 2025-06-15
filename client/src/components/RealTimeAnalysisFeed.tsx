@@ -33,149 +33,131 @@ const RealTimeAnalysisFeed: React.FC<RealTimeAnalysisFeedProps> = ({ analysis })
   useEffect(() => {
     if (!analysis) return;
 
-    // Clear any existing feed items when analysis changes
-    setFeedItems([]);
-    setFeedIdCounter(0);
+    try {
+      // Clear any existing feed items when analysis changes
+      setFeedItems([]);
+      setFeedIdCounter(0);
 
-    // Generate feed items based on actual analysis state
-    const generateFeedBasedOnAnalysis = () => {
-      const items: FeedItem[] = [];
-      const baseTime = Date.now();
+      // Generate feed items based on actual analysis state
+      const generateFeedBasedOnAnalysis = () => {
+        const items: FeedItem[] = [];
+        const baseTime = Date.now();
 
-      // Add items based on analysis status and progress
-      if (analysis.status === 'PENDING') {
-        items.push({
-          id: generateUniqueId(),
-          type: 'scan',
-          message: 'Analysis queued - preparing to scan codebase...',
-          timestamp: new Date(baseTime).toISOString(),
-        });
-      } else if (analysis.status === 'IN_PROGRESS') {
-        // Add stage-specific messages
-        switch (analysis.stage) {
-          case 'INITIALIZING':
+        try {
+          // Add items based on analysis status and progress
+          if (analysis.status === 'PENDING') {
             items.push({
               id: generateUniqueId(),
               type: 'scan',
-              message: 'Initializing security analysis engine...',
+              message: 'Analysis queued - preparing to scan codebase...',
               timestamp: new Date(baseTime).toISOString(),
             });
-            break;
-          case 'FETCHING_CODE':
+          } else if (analysis.status === 'IN_PROGRESS') {
+            // Add stage-specific messages
+            switch (analysis.stage) {
+              case 'INITIALIZING':
+                items.push({
+                  id: generateUniqueId(),
+                  type: 'scan',
+                  message: 'Initializing security analysis engine...',
+                  timestamp: new Date(baseTime).toISOString(),
+                });
+                break;
+              case 'FETCHING_CODE':
+                items.push({
+                  id: generateUniqueId(),
+                  type: 'scan',
+                  message: 'Fetching project files from repository...',
+                  timestamp: new Date(baseTime).toISOString(),
+                });
+                break;
+              case 'STATIC_ANALYSIS':
+                items.push({
+                  id: generateUniqueId(),
+                  type: 'analysis',
+                  message: 'Performing static code analysis...',
+                  timestamp: new Date(baseTime + 500).toISOString(),
+                });
+                if (analysis.progress && analysis.progress > 30) {
+                  items.push({
+                    id: generateUniqueId(),
+                    type: 'scan',
+                    message: `Scanning files... ${analysis.progress}% complete`,
+                    timestamp: new Date(baseTime + 1000).toISOString(),
+                  });
+                }
+                break;
+              case 'AI_ANALYSIS':
+                items.push({
+                  id: generateUniqueId(),
+                  type: 'analysis',
+                  message: 'AI analyzing code patterns and security vulnerabilities...',
+                  timestamp: new Date(baseTime + 1500).toISOString(),
+                });
+                break;
+              case 'THREAT_MODELING':
+                items.push({
+                  id: generateUniqueId(),
+                  type: 'analysis',
+                  message: 'Generating threat model and attack vectors...',
+                  timestamp: new Date(baseTime + 2000).toISOString(),
+                });
+                break;
+            }
+          } else if (analysis.status === 'COMPLETED') {
             items.push({
               id: generateUniqueId(),
-              type: 'scan',
-              message: 'Fetching project files from repository...',
+              type: 'remediation',
+              message: `Analysis complete! Found ${analysis.vulnerabilities?.length || 0} vulnerabilities`,
               timestamp: new Date(baseTime).toISOString(),
             });
-            break;
-          case 'STATIC_ANALYSIS':
-            items.push({
-              id: generateUniqueId(),
-              type: 'analysis',
-              message: 'Performing static code analysis...',
-              timestamp: new Date(baseTime + 500).toISOString(),
-            });
-            if (analysis.progress && analysis.progress > 30) {
+            
+            // Add vulnerability highlights
+            const criticalVulns = (analysis.vulnerabilities && Array.isArray(analysis.vulnerabilities)) 
+              ? analysis.vulnerabilities.filter(v => v && v.severity === 'CRITICAL') 
+              : [];
+            if (criticalVulns.length > 0) {
               items.push({
                 id: generateUniqueId(),
-                type: 'scan',
-                message: `Scanning files... ${analysis.progress}% complete`,
-                timestamp: new Date(baseTime + 1000).toISOString(),
+                type: 'vulnerability',
+                message: `${criticalVulns.length} critical vulnerabilities detected`,
+                timestamp: new Date(baseTime + 500).toISOString(),
+                severity: 'CRITICAL',
               });
             }
-            break;
-          case 'AI_ANALYSIS':
+          } else if (analysis.status === 'FAILED') {
             items.push({
               id: generateUniqueId(),
-              type: 'analysis',
-              message: 'AI analyzing code patterns and security vulnerabilities...',
-              timestamp: new Date(baseTime + 1500).toISOString(),
+              type: 'vulnerability',
+              message: 'Analysis failed - please check logs for details',
+              timestamp: new Date(baseTime).toISOString(),
+              severity: 'HIGH',
             });
-            break;
-          case 'THREAT_MODELING':
-            items.push({
-              id: generateUniqueId(),
-              type: 'analysis',
-              message: 'Generating threat model and attack vectors...',
-              timestamp: new Date(baseTime + 2000).toISOString(),
-            });
-            break;
+          }
+        } catch (error) {
+          console.warn('Error generating feed items:', error);
         }
-      } else if (analysis.status === 'COMPLETED') {
-        items.push({
-          id: generateUniqueId(),
-          type: 'remediation',
-          message: `Analysis complete! Found ${analysis.vulnerabilities.length} vulnerabilities`,
-          timestamp: new Date(baseTime).toISOString(),
-        });
+
+        return items;
+      };
+
+      // Add initial feed items
+      const initialItems = generateFeedBasedOnAnalysis();
+      for (let itemIndex = 0; itemIndex < initialItems.length; itemIndex++) {
+        const item = initialItems[itemIndex];
+        if (!item) continue;
         
-        // Add vulnerability highlights
-        const criticalVulns = analysis.vulnerabilities.filter(v => v.severity === 'CRITICAL');
-        if (criticalVulns.length > 0) {
-          items.push({
-            id: generateUniqueId(),
-            type: 'vulnerability',
-            message: `${criticalVulns.length} critical vulnerabilities detected`,
-            timestamp: new Date(baseTime + 500).toISOString(),
-            severity: 'CRITICAL',
+        setTimeout(() => {
+          setFeedItems(prev => {
+            // Ensure no duplicate keys by filtering out any existing items with the same ID
+            const filteredPrev = prev.filter(existingItem => existingItem && existingItem.id !== item.id);
+            return [item, ...filteredPrev].slice(0, 10);
           });
-        }
-      } else if (analysis.status === 'FAILED') {
-        items.push({
-          id: generateUniqueId(),
-          type: 'vulnerability',
-          message: 'Analysis failed - please check logs for details',
-          timestamp: new Date(baseTime).toISOString(),
-          severity: 'HIGH',
-        });
+        }, itemIndex * 800); // Stagger the appearance
       }
-
-      return items;
-    };
-
-    // Add initial feed items
-    const initialItems = generateFeedBasedOnAnalysis();
-    initialItems.forEach((item, index) => {
-      setTimeout(() => {
-        setFeedItems(prev => {
-          // Ensure no duplicate keys by filtering out any existing items with the same ID
-          const filteredPrev = prev.filter(existingItem => existingItem.id !== item.id);
-          return [item, ...filteredPrev].slice(0, 10);
-        });
-      }, index * 800); // Stagger the appearance
-    });
-
-    // For in-progress analyses, simulate ongoing updates
-    let intervalId: NodeJS.Timeout | null = null;
-    
-    if (analysis.status === 'IN_PROGRESS') {
-      intervalId = setInterval(() => {
-        const progressItems = [
-          {
-            id: generateUniqueId(),
-            type: 'scan' as const,
-            message: `Analyzing... ${analysis.progress || 0}% complete`,
-            timestamp: new Date().toISOString(),
-          },
-          {
-            id: generateUniqueId(),
-            type: 'analysis' as const,
-            message: 'Processing security patterns...',
-            timestamp: new Date().toISOString(),
-          },
-        ];
-
-        const randomItem = progressItems[Math.floor(Math.random() * progressItems.length)];
-        setFeedItems(prev => [randomItem, ...prev].slice(0, 10));
-      }, 12000); // Update every 12 seconds
+    } catch (error) {
+      console.warn('Error in RealTimeAnalysisFeed useEffect:', error);
     }
-
-    return () => {
-      if (intervalId) {
-        clearInterval(intervalId);
-      }
-    };
   }, [analysis?.id, analysis?.status, analysis?.stage, analysis?.progress]); // Only re-run when analysis actually changes
 
   const getIcon = (type: string) => {
@@ -263,7 +245,7 @@ const RealTimeAnalysisFeed: React.FC<RealTimeAnalysisFeedProps> = ({ analysis })
       </div>
 
       {/* AI suggestions */}
-      {analysis && analysis.vulnerabilities.length > 0 && (
+      {analysis && analysis.vulnerabilities && analysis.vulnerabilities.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}

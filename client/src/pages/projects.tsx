@@ -63,36 +63,45 @@ export default function ProjectsPage() {
 
       // Enrich projects with latest analysis data
       const enrichedProjects = await Promise.all(
-        projectsData.map(async (project: Project) => {
+        (Array.isArray(projectsData) ? projectsData : []).map(async (project: Project) => {
           try {
+            if (!project || !project._id) {
+              return project;
+            }
+            
             const analyses = await analysisAPI.getByProject(project._id, 1)
-            const latestAnalysis = analyses?.[0]
+            const latestAnalysis = analyses && Array.isArray(analyses) && analyses.length > 0 ? analyses[0] : null
 
             return {
               ...project,
               latestAnalysis: latestAnalysis ? {
-                id: latestAnalysis._id,
-                projectId: latestAnalysis.projectId,
-                commitHash: latestAnalysis.commitHash,
-                timestamp: latestAnalysis.createdAt,
-                securityScore: latestAnalysis.securityScore || 0,
+                id: latestAnalysis._id || '',
+                projectId: latestAnalysis.projectId || project._id,
+                commitHash: latestAnalysis.commitHash || '',
+                timestamp: latestAnalysis.createdAt || new Date().toISOString(),
+                securityScore: typeof latestAnalysis.securityScore === 'number' ? latestAnalysis.securityScore : 0,
                 threatLevel: latestAnalysis.threatLevel || 'LOW',
-                vulnerabilities: latestAnalysis.vulnerabilities || [],
-                threatModel: latestAnalysis.threatModel || {
+                vulnerabilities: Array.isArray(latestAnalysis.vulnerabilities) ? latestAnalysis.vulnerabilities : [],
+                threatModel: latestAnalysis.threatModel && typeof latestAnalysis.threatModel === 'object' ? {
+                  nodes: Array.isArray(latestAnalysis.threatModel.nodes) ? latestAnalysis.threatModel.nodes : [],
+                  edges: Array.isArray(latestAnalysis.threatModel.edges) ? latestAnalysis.threatModel.edges : [],
+                  attackVectors: Array.isArray(latestAnalysis.threatModel.attackVectors) ? latestAnalysis.threatModel.attackVectors : [],
+                  attackSurface: latestAnalysis.threatModel.attackSurface || { endpoints: 0, inputPoints: 0, outputPoints: 0, externalDependencies: 0, privilegedFunctions: 0 }
+                } : {
                   nodes: [], edges: [], attackVectors: [],
                   attackSurface: { endpoints: 0, inputPoints: 0, outputPoints: 0, externalDependencies: 0, privilegedFunctions: 0 }
                 },
-                aiAnalysis: latestAnalysis.aiAnalysis || '',
-                remediationSteps: latestAnalysis.remediationSteps || [],
-                complianceScore: latestAnalysis.complianceScore || { owasp: 0, pci: 0, sox: 0, gdpr: 0, iso27001: 0 },
-                status: latestAnalysis.status,
+                aiAnalysis: typeof latestAnalysis.aiAnalysis === 'string' ? latestAnalysis.aiAnalysis : '',
+                remediationSteps: Array.isArray(latestAnalysis.remediationSteps) ? latestAnalysis.remediationSteps : [],
+                complianceScore: latestAnalysis.complianceScore && typeof latestAnalysis.complianceScore === 'object' ? latestAnalysis.complianceScore : { owasp: 0, pci: 0, sox: 0, gdpr: 0, iso27001: 0 },
+                status: latestAnalysis.status || 'COMPLETED',
                 userId: latestAnalysis.userId || latestAnalysis.createdBy || ''
               } : undefined,
-              analysisCount: analyses?.length || 0,
+              analysisCount: analyses && Array.isArray(analyses) ? analyses.length : 0,
               lastScanDate: latestAnalysis?.createdAt || null
             }
           } catch (error) {
-            console.error(`Failed to load analysis for project ${project._id}:`, error)
+            console.warn(`Failed to load analysis for project ${project?._id}:`, error)
             return { ...project, analysisCount: 0 }
           }
         })
@@ -403,9 +412,9 @@ export default function ProjectsPage() {
                       <span className="text-gray-400 text-sm">Vulnerabilities</span>
                       <div className="flex items-center space-x-2">
                         <span className="text-white font-semibold">
-                          {project.latestAnalysis.vulnerabilities.length}
+                          {project.latestAnalysis.vulnerabilities?.length || 0}
                         </span>
-                        {project.latestAnalysis.vulnerabilities.length > 0 && (
+                        {project.latestAnalysis.vulnerabilities && project.latestAnalysis.vulnerabilities.length > 0 && (
                           <TrendingUp className="w-4 h-4 text-red-400" />
                         )}
                       </div>

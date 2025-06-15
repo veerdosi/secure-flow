@@ -234,30 +234,62 @@ export const projectAPI = {
 // Analysis API
 export const analysisAPI = {
   start: async (data: AnalysisStartData) => {
-    const response = await api.post('/api/analysis/start', data);
-    return response.data;
+    try {
+      const response = await api.post('/api/analysis/start', data);
+      return response.data || {};
+    } catch (error: any) {
+      console.error('Failed to start analysis:', error?.message);
+      throw error;
+    }
   },
 
   getById: async (id: string) => {
-    const response = await api.get(`/api/analysis/${id}`);
-    return response.data;
+    try {
+      const response = await api.get(`/api/analysis/${id}`);
+      return response.data || null;
+    } catch (error: any) {
+      console.warn('Failed to get analysis:', error?.message);
+      return null;
+    }
   },
 
   getByProject: async (projectId: string, limit: number = 10) => {
-    const response = await api.get(`/api/analysis/project/${projectId}`, {
-      params: { limit }
-    });
-    return response.data;
+    try {
+      const response = await api.get(`/api/analysis/project/${projectId}`, {
+        params: { limit }
+      });
+      // Ensure we return an array
+      const data = response.data;
+      if (Array.isArray(data)) {
+        return data;
+      } else if (data && Array.isArray(data.analyses)) {
+        return data.analyses;
+      }
+      return [];
+    } catch (error: any) {
+      console.warn('Failed to get project analyses:', error?.message);
+      return [];
+    }
   },
 
   getProgress: async (analysisId: string) => {
-    const response = await api.get(`/api/analysis/${analysisId}/progress`);
-    return response.data;
+    try {
+      const response = await api.get(`/api/analysis/${analysisId}/progress`);
+      return response.data || { progress: 0, stage: 'UNKNOWN' };
+    } catch (error: any) {
+      console.warn('Failed to get analysis progress:', error?.message);
+      return { progress: 0, stage: 'UNKNOWN' };
+    }
   },
 
   cancel: async (analysisId: string) => {
-    const response = await api.post(`/api/analysis/${analysisId}/cancel`);
-    return response.data;
+    try {
+      const response = await api.post(`/api/analysis/${analysisId}/cancel`);
+      return response.data || {};
+    } catch (error: any) {
+      console.error('Failed to cancel analysis:', error?.message);
+      throw error;
+    }
   },
 };
 
@@ -342,21 +374,44 @@ export const notificationAPI = {
     unread?: boolean;
     projectId?: string;
   } = {}) => {
-    const response = await api.get('/api/notifications', { params });
-    return response.data;
+    try {
+      const response = await api.get('/api/notifications', { params });
+      // Ensure response has expected structure
+      if (!response.data || typeof response.data !== 'object') {
+        return { notifications: [], unreadCount: 0 };
+      }
+      return {
+        notifications: Array.isArray(response.data.notifications) ? response.data.notifications : [],
+        unreadCount: typeof response.data.unreadCount === 'number' ? response.data.unreadCount : 0,
+        ...response.data
+      };
+    } catch (error: any) {
+      // Return safe fallback for any error
+      return { notifications: [], unreadCount: 0 };
+    }
   },
 
   markAsRead: async (data: {
     notificationIds?: string[];
     markAll?: boolean;
   }) => {
-    const response = await api.patch('/api/notifications/read', data);
-    return response.data;
+    try {
+      const response = await api.patch('/api/notifications/read', data);
+      return response.data || {};
+    } catch (error: any) {
+      console.warn('Failed to mark notifications as read:', error?.message);
+      return {};
+    }
   },
 
   getStats: async () => {
-    const response = await api.get('/api/notifications/stats');
-    return response.data;
+    try {
+      const response = await api.get('/api/notifications/stats');
+      return response.data || {};
+    } catch (error: any) {
+      console.warn('Failed to get notification stats:', error?.message);
+      return {};
+    }
   },
 };
 

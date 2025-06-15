@@ -103,151 +103,78 @@ const ThreatModelVisualization: React.FC<ThreatModelVisualizationProps> = ({ thr
   };
 
   const createRealThreatModel = (scene: THREE.Scene, model: ThreatModel) => {
-    const nodeObjects = new Map<string, THREE.Mesh>();
+    if (!model || !model.nodes || !Array.isArray(model.nodes)) {
+      createFallbackModel(scene);
+      return;
+    }
 
-    // Position nodes in a circle or grid
-    const radius = 4;
-    const nodeCount = model.nodes.length;
+    try {
+      const nodeObjects = new Map<string, THREE.Mesh>();
 
-    model.nodes.forEach((node, index) => {
-      const angle = (index / nodeCount) * Math.PI * 2;
-      const x = node.position?.x || Math.cos(angle) * radius;
-      const y = node.position?.y || Math.sin(angle) * radius;
-      const z = node.position?.z || 0;
+      // Position nodes in a circle or grid
+      const radius = 4;
+      const nodeCount = model.nodes.length;
 
-      const geometry = getNodeShape(node.type);
-      const material = new THREE.MeshPhongMaterial({
-        color: getRiskColor(node.riskLevel),
-        transparent: true,
-        opacity: 0.8,
-        shininess: 100
-      });
+      for (let nodeIndex = 0; nodeIndex < model.nodes.length; nodeIndex++) {
+        const node = model.nodes[nodeIndex];
+        if (!node) continue;
 
-      const nodeMesh = new THREE.Mesh(geometry, material);
-      nodeMesh.position.set(x, y, z);
-      nodeMesh.userData = { node, type: 'threatNode' };
+        const angle = (nodeIndex / nodeCount) * Math.PI * 2;
+        const x = node.position?.x || Math.cos(angle) * radius;
+        const y = node.position?.y || Math.sin(angle) * radius;
+        const z = node.position?.z || 0;
 
-      // Animate high-risk nodes
-      if (node.riskLevel === 'HIGH' || node.riskLevel === 'CRITICAL') {
-        const animate = () => {
-          const time = Date.now() * 0.003;
-          nodeMesh.scale.setScalar(1 + Math.sin(time + index) * 0.15);
-          material.opacity = 0.7 + Math.sin(time + index) * 0.2;
-          requestAnimationFrame(animate);
-        };
-        animate();
-      }
-
-      scene.add(nodeMesh);
-      nodeObjects.set(node.id, nodeMesh);
-
-      // Add vulnerability indicators
-      if (node.vulnerabilities.length > 0) {
-        const vulnGeometry = new THREE.RingGeometry(0.7, 0.9, 8);
-        const vulnMaterial = new THREE.MeshBasicMaterial({
-          color: 0xff073a,
+        const geometry = getNodeShape(node.type);
+        const material = new THREE.MeshPhongMaterial({
+          color: getRiskColor(node.riskLevel),
           transparent: true,
-          opacity: 0.3,
-          side: THREE.DoubleSide
-        });
-        const vulnRing = new THREE.Mesh(vulnGeometry, vulnMaterial);
-        vulnRing.position.copy(nodeMesh.position);
-        scene.add(vulnRing);
-
-        // Rotate vulnerability ring
-        const rotateRing = () => {
-          vulnRing.rotation.z += 0.01;
-          requestAnimationFrame(rotateRing);
-        };
-        rotateRing();
-      }
-    });
-
-    // Create edges/connections
-    model.edges.forEach((edge) => {
-      const sourceNode = nodeObjects.get(edge.source);
-      const targetNode = nodeObjects.get(edge.target);
-
-      if (sourceNode && targetNode) {
-        const points = [sourceNode.position, targetNode.position];
-        const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
-        
-        const lineColor = edge.encrypted ? 0x39ff14 : 
-                         edge.authenticated ? 0xffeb3b : 
-                         getRiskColor(edge.riskLevel);
-
-        const lineMaterial = new THREE.LineBasicMaterial({
-          color: lineColor,
-          transparent: true,
-          opacity: edge.encrypted ? 0.8 : 0.4,
-          linewidth: edge.type === 'trust_boundary' ? 3 : 1
+          opacity: 0.8,
+          shininess: 100
         });
 
-        const line = new THREE.Line(lineGeometry, lineMaterial);
-        line.userData = { edge, type: 'threatEdge' };
-        scene.add(line);
+        const nodeMesh = new THREE.Mesh(geometry, material);
+        nodeMesh.position.set(x, y, z);
+        nodeMesh.userData = { node, type: 'threatNode' };
 
-        // Add data flow particles for active connections
-        if (edge.type === 'data_flow' || edge.type === 'api_call') {
-          const particleGeometry = new THREE.SphereGeometry(0.03, 8, 8);
-          const particleMaterial = new THREE.MeshBasicMaterial({ 
-            color: lineColor,
-            transparent: true,
-            opacity: 0.8
-          });
+        scene.add(nodeMesh);
+        nodeObjects.set(node.id, nodeMesh);
+      }
 
-          for (let i = 0; i < 2; i++) {
-            const particle = new THREE.Mesh(particleGeometry, particleMaterial);
-            scene.add(particle);
+      // Create edges/connections
+      if (model.edges && Array.isArray(model.edges)) {
+        for (const edge of model.edges) {
+          if (!edge) continue;
+          
+          const sourceNode = nodeObjects.get(edge.source);
+          const targetNode = nodeObjects.get(edge.target);
 
-            const animateParticle = () => {
-              const time = (Date.now() * 0.002 + i * Math.PI) % 1;
-              particle.position.lerpVectors(sourceNode.position, targetNode.position, time);
-              requestAnimationFrame(animateParticle);
-            };
-            animateParticle();
+          if (sourceNode && targetNode) {
+            const points = [sourceNode.position, targetNode.position];
+            const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
+            
+            const lineColor = edge.encrypted ? 0x39ff14 : 
+                             edge.authenticated ? 0xffeb3b : 
+                             getRiskColor(edge.riskLevel);
+
+            const lineMaterial = new THREE.LineBasicMaterial({
+              color: lineColor,
+              transparent: true,
+              opacity: edge.encrypted ? 0.8 : 0.4,
+              linewidth: edge.type === 'trust_boundary' ? 3 : 1
+            });
+
+            const line = new THREE.Line(lineGeometry, lineMaterial);
+            line.userData = { edge, type: 'threatEdge' };
+            scene.add(line);
           }
         }
       }
-    });
 
-    // Add attack vector visualization
-    model.attackVectors.forEach((vector, index) => {
-      if (vector.affectedNodes.length > 0) {
-        vector.affectedNodes.forEach(nodeId => {
-          const node = nodeObjects.get(nodeId);
-          if (node) {
-            // Create attack path indicator
-            const pathGeometry = new THREE.SphereGeometry(0.1, 8, 8);
-            const pathMaterial = new THREE.MeshBasicMaterial({
-              color: getRiskColor(vector.severity),
-              transparent: true,
-              opacity: 0.6
-            });
-
-            const pathIndicator = new THREE.Mesh(pathGeometry, pathMaterial);
-            pathIndicator.position.set(
-              node.position.x + Math.random() * 0.5 - 0.25,
-              node.position.y + Math.random() * 0.5 - 0.25,
-              node.position.z + 1
-            );
-            pathIndicator.userData = { attackVector: vector, type: 'attackVector' };
-
-            // Floating animation
-            const float = () => {
-              const time = Date.now() * 0.001;
-              pathIndicator.position.y += Math.sin(time + index) * 0.002;
-              requestAnimationFrame(float);
-            };
-            float();
-
-            scene.add(pathIndicator);
-          }
-        });
-      }
-    });
-
-    addLighting(scene);
+      addLighting(scene);
+    } catch (error) {
+      console.warn('Error creating threat model:', error);
+      createFallbackModel(scene);
+    }
   };
 
   const createFallbackModel = (scene: THREE.Scene) => {
