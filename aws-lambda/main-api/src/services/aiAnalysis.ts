@@ -63,10 +63,10 @@ class AIAnalysisService {
       this.model = this.genAI.getGenerativeModel({
         model: process.env.GEMINI_MODEL || 'gemini-1.5-flash',
         generationConfig: {
-          temperature: 0.1, // Lower temperature for more consistent security analysis
+          temperature: 0.1,
           topK: 20,
           topP: 0.8,
-          maxOutputTokens: 8192,
+          maxOutputTokens: 4096, // Reduced from 8192
         },
       });
 
@@ -104,8 +104,8 @@ class AIAnalysisService {
       codeContent = String(codeContent);
     }
 
-    // Skip analysis for very large files
-    if (codeContent.length > 100000) {
+    // Skip analysis for large files to avoid timeout
+    if (codeContent.length > 20000) { // Match GitLab service limit
       logger.warn(`⚠️ File ${filePath} is too large (${codeContent.length} chars), skipping analysis`);
       return {
         vulnerabilities: [],
@@ -158,7 +158,7 @@ class AIAnalysisService {
           file: filePath
         });
         return text;
-      });
+      }, 8000); // 8 second timeout per AI request
 
       logger.info(`🔧 Parsing AI response for ${filePath}`, {
         rawResponseLength: result.length
@@ -494,7 +494,7 @@ class AIAnalysisService {
       .trim();
   }
 
-  private async executeWithRetry<T>(operation: () => Promise<T>): Promise<T> {
+  private async executeWithRetry<T>(operation: () => Promise<T>, timeoutMs: number = 10000): Promise<T> {
     let lastError: Error;
     
     for (let attempt = 1; attempt <= this.MAX_RETRIES; attempt++) {
@@ -507,7 +507,15 @@ class AIAnalysisService {
         }
         
         const startTime = Date.now();
-        const result = await operation();
+        
+        // Add timeout wrapper
+        const result = await Promise.race([
+          operation(),
+          new Promise<never>((_, reject) => 
+            setTimeout(() => reject(new Error(`Operation timeout after ${timeoutMs}ms`)), timeoutMs)
+          )
+        ]);
+        
         const duration = Date.now() - startTime;
         
         logger.info(`✅ AI operation completed successfully`, {

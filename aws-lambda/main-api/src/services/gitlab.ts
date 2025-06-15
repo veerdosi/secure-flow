@@ -36,7 +36,7 @@ class GitLabService {
         'Authorization': `Bearer ${apiToken}`,
         'Content-Type': 'application/json',
       },
-      timeout: 30000,
+      timeout: 15000, // Reduced from 30s to 15s
     });
   }
 
@@ -89,12 +89,11 @@ class GitLabService {
         baseUrl: config.baseUrl
       });
 
-      // Get repository tree
       const response = await client.get(`/projects/${projectId}/repository/tree`, {
         params: {
           ref,
-          recursive: true,
-          per_page: 100
+          recursive: false, // Don't recurse initially to avoid timeout
+          per_page: 50      // Smaller page size for faster response
         }
       });
 
@@ -104,7 +103,40 @@ class GitLabService {
         statusCode: response.status
       });
 
-      // Filter for files only and common source code extensions
+      // Get only files from root and first-level directories
+      const allFiles: GitLabFile[] = [];
+      const rootFiles = response.data.filter((item: GitLabFile) => item.type === 'blob');
+      allFiles.push(...rootFiles);
+
+      // Fetch only common source directories to avoid timeout
+      const commonSourceDirs = ['src', 'lib', 'components', 'pages', 'app', 'api'];
+      const directories = response.data
+        .filter((item: GitLabFile) => 
+          item.type === 'tree' && 
+          commonSourceDirs.some(dir => item.name.toLowerCase().includes(dir))
+        )
+        .slice(0, 3); // Limit to 3 directories max
+
+      // Fetch files from selected directories
+      for (const dir of directories) {
+        try {
+          const dirResponse = await client.get(`/projects/${projectId}/repository/tree`, {
+            params: {
+              ref,
+              path: dir.path,
+              recursive: true,
+              per_page: 30
+            }
+          });
+          
+          const dirFiles = dirResponse.data.filter((item: GitLabFile) => item.type === 'blob');
+          allFiles.push(...dirFiles);
+        } catch (dirError) {
+          logger.warn(`Failed to fetch directory ${dir.path}, skipping`);
+        }
+      }
+
+      // Filter for code files only
       const codeExtensions = [
         '.js', '.ts', '.jsx', '.tsx', '.py', '.java', '.cpp', '.c', '.cs', '.php',
         '.rb', '.go', '.rs', '.swift', '.kt', '.scala', '.clj', '.hs', '.ml',
@@ -112,9 +144,8 @@ class GitLabService {
         '.json', '.xml', '.yaml', '.yml', '.toml', '.ini', '.cfg', '.conf'
       ];
 
-      const filteredFiles = response.data
+      const filteredFiles = allFiles
         .filter((item: GitLabFile) => {
-          if (item.type !== 'blob') return false;
           return codeExtensions.some(ext => item.name.toLowerCase().endsWith(ext));
         })
         .map((item: GitLabFile) => ({
@@ -123,11 +154,12 @@ class GitLabService {
           type: item.type,
           path: item.path,
           mode: item.mode
-        }));
+        }))
+        .slice(0, 100); // Limit to 100 files max for performance
 
       logger.info(`✅ GitLab files filtered and processed`, {
         projectId,
-        totalFiles: response.data.length,
+        totalFiles: allFiles.length,
         codeFiles: filteredFiles.length,
         fileTypes: filteredFiles.reduce((acc: Record<string, number>, f: GitLabFile) => {
           const ext = f.name.split('.').pop() || 'unknown';

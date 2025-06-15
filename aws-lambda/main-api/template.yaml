@@ -4,7 +4,7 @@ Description: SecureFlow Main API Lambda Function - Security-Compliant CORS Confi
 
 Globals:
   Function:
-    Timeout: 30
+    Timeout: 90
     MemorySize: 1024
     Environment:
       Variables:

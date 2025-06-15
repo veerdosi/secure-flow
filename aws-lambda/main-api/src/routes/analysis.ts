@@ -287,46 +287,64 @@ async function processAnalysis(analysisId: string, projectId: string, commitHash
       progress: 30,
     });
 
-    // Analyze files
     const allVulnerabilities: any[] = [];
     let totalScore = 0;
     let fileCount = 0;
     let analysisErrors = 0;
 
-    logger.info('🔍 VULNERABILITY SCANNING: Starting deep security analysis of code files', {
+    logger.info('🔍 VULNERABILITY SCANNING: Starting optimized security analysis', {
       analysisId,
       totalFiles: files.length,
-      analyzing: Math.min(files.length, 10),
+      analyzing: Math.min(files.length, 3), // Reduced from 10 to 3
       analysisStage: 'VULNERABILITY_DETECTION',
-      scanningApproach: 'AI_POWERED_STATIC_ANALYSIS'
+      scanningApproach: 'FAST_AI_ANALYSIS'
     });
 
-    for (const [index, file] of files.slice(0, 10).entries()) {
-      logger.info(`📄 SCANNING: ${file.path} - AI security analysis in progress`, {
+    // Prioritize important files and limit to 8 for performance (files are already <20KB from GitLab)
+    logger.info('🔍 VULNERABILITY SCANNING: Starting optimized security analysis', {
+      analysisId,
+      totalFiles: files.length,
+      analyzing: Math.min(files.length, 5), // Reduced from 10 to 5
+      analysisStage: 'VULNERABILITY_DETECTION',
+      scanningApproach: 'OPTIMIZED_AI_ANALYSIS'
+    });
+
+    const priorityFiles = files
+      .filter(f => {
+        const path = f.path.toLowerCase();
+        return path.includes('src/') || path.includes('api/') ||
+               path.includes('components/') || path.includes('lib/') ||
+               path.endsWith('.ts') || path.endsWith('.js') || path.endsWith('.tsx');
+      })
+      .slice(0, 8); // Reasonable number for 30s timeout
+
+    for (const [index, file] of priorityFiles.entries()) {
+      logger.info(`📄 SCANNING: ${file.path} - AI security analysis`, {
         analysisId,
         fileName: file.path,
-        fileIndex: `${index + 1}/${Math.min(files.length, 10)}`,
-        fileSize: file.size || 'unknown',
-        analysisType: 'STATIC_VULNERABILITY_SCAN'
+        fileIndex: `${index + 1}/${priorityFiles.length}`,
+        analysisType: 'FAST_VULNERABILITY_SCAN'
       });
 
       try {
         const startTime = Date.now();
         const content = await gitlabService.getFileContent(actualGitlabProjectId, userId, file.path, commitHash || 'main');
-        
-        logger.info(`📥 Retrieved file content for ${file.path}`, {
+
+        // Files are already filtered to <20KB by GitLab service, so no need to check again
+        const aiResult = await aiAnalysisService.analyzeCode(content, file.path);
+
+        logger.info('🤖 AI analysis completed for ' + file.path, {
           analysisId,
-          contentLength: content.length,
-          retrievalTime: Date.now() - startTime
+          fileName: file.path,
+          aiProcessingTime: Date.now() - startTime,
+          vulnerabilities: aiResult.vulnerabilities?.length || 0,
+          securityScore: aiResult.securityScore
         });
 
-        const aiStartTime = Date.now();
-        const aiResult = await aiAnalysisService.analyzeCode(content, file.path);
-        
         logger.info('🤖 AI VULNERABILITY DETECTION: Security analysis completed for ' + file.path, {
           analysisId,
           fileName: file.path,
-          aiProcessingTime: Date.now() - aiStartTime,
+          aiProcessingTime: Date.now() - startTime,
           vulnerabilities: aiResult.vulnerabilities?.length || 0,
           securityScore: aiResult.securityScore,
           threatLevel: aiResult.threatLevel || 'unknown',
@@ -339,9 +357,9 @@ async function processAnalysis(analysisId: string, projectId: string, commitHash
             file: file.path,
             id: `vuln_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           }));
-          
+
           allVulnerabilities.push(...vulnerabilities);
-          
+
           logger.info('📝 VULNERABILITIES FOUND: Security issues detected in ' + file.path, {
             analysisId,
             fileName: file.path,
