@@ -26,7 +26,14 @@ export const useNotificationPolling = () => {
         unread: true,
         limit: 50
       })
-      
+      // Add a defensive check to ensure the API returned the expected data structure
+      if (!data || !data.notifications) {
+        console.warn('Received invalid data from notification API, skipping update.');
+        if (data && data.error === 'Invalid token') {
+            stopPolling();
+        }
+        return;
+      }
       const newNotifications = data.notifications.filter(
         (n: Notification) => new Date(n.createdAt) > lastPolledRef.current
       )

@@ -197,7 +197,7 @@ export default function ProjectSettingsPage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
                 <button
-                  onClick={() => router.push(`/projects=${id}`)}
+                  onClick={() => router.push(`/projects/${id}`)}
                   className="text-gray-400 hover:text-white transition-colors"
                 >
                   <ArrowLeft className="w-6 h-6" />

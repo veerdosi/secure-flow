@@ -328,11 +328,11 @@ const AnalysisPage: React.FC = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <button
-                onClick={() => project ? router.push(`/projects/${project._id}`) : router.push('/projects')}
+                onClick={() => analysis?.projectId ? router.push(`/projects/${analysis.projectId}`) : router.push('/projects')}
                 className="flex items-center text-gray-400 hover:text-white transition-colors"
               >
                 <ArrowLeft className="w-5 h-5 mr-2" />
-                <span className="text-sm">Back to {project ? 'Dashboard' : 'Projects'}</span>
+                <span className="text-sm">Back to {analysis?.projectId ? 'Dashboard' : 'Projects'}</span>
               </button>
               <div className="h-6 w-px bg-gray-600" />
               <div>

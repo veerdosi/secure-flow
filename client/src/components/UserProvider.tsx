@@ -295,7 +295,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({
                   </div>
                   <div className="flex items-center justify-between text-xs text-gray-400 mt-1">
                     <span>Projects:</span>
-                    <span>{user.projects.length}</span>
+                    <span>{user.projects?.length || 0}</span>
                   </div>
                 </div>
               </motion.div>

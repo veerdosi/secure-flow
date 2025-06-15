@@ -478,9 +478,9 @@ export default function ProjectsPage() {
         />
 
         <ProjectSetup
-          onProjectCreated={handleProjectCreated}
-          triggerOpen={triggerProjectSetup}
-          onClose={() => setTriggerProjectSetup(false)}
+            onProjectCreated={handleProjectCreated}
+            isOpen={triggerProjectSetup}
+            onClose={() => setTriggerProjectSetup(false)}
         />
       </div>
     </>

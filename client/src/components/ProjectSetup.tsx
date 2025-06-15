@@ -22,21 +22,16 @@ import { useUser } from './UserProvider';
 
 interface ProjectSetupProps {
   onProjectCreated: (project: any) => void;
-  triggerOpen?: boolean;
+  isOpen: boolean;
   onClose?: () => void;
-  buttonText?: string;
-  buttonIcon?: React.ReactNode;
 }
 
 const ProjectSetup: React.FC<ProjectSetupProps> = ({
   onProjectCreated,
-  triggerOpen = false,
-  onClose,
-  buttonText = "Add GitLab Project",
-  buttonIcon = <Plus className="w-5 h-5 mr-2" />
+  isOpen, 
+  onClose
 }) => {
   const { user } = useUser();
-  const [isOpen, setIsOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -56,8 +51,10 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({
   const [webhookSecret, setWebhookSecret] = useState('');
   const [webhookUrl, setWebhookUrl] = useState('');
   const [detectingBranch, setDetectingBranch] = useState(false);
-
-  // Function to detect default branch from GitLab
+  
+  // ... (keep all the existing functions: detectDefaultBranch, useEffects, generateWebhookSecret, copyToClipboard, etc.)
+  
+    // Function to detect default branch from GitLab
   const detectDefaultBranch = async (projectId: string) => {
     if (!projectId.trim()) return;
     
@@ -93,12 +90,6 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({
       setDetectingBranch(false);
     }
   };
-
-  useEffect(() => {
-    if (triggerOpen) {
-      setIsOpen(true);
-    }
-  }, [triggerOpen]);
 
   useEffect(() => {
     if (isOpen) {
@@ -211,7 +202,6 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({
   };
 
   const handleClose = () => {
-    setIsOpen(false);
     setCurrentStep(1);
     setError('');
     setFormData({
@@ -223,7 +213,7 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({
       notificationEmail: user?.email || '',
       scanTypes: ['STATIC_ANALYSIS', 'DEPENDENCY_SCAN', 'SECRET_SCAN']
     });
-    onClose?.();
+    if (onClose) onClose();
   };
 
   const scanTypeOptions = [
@@ -247,18 +237,8 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({
     }
   ];
 
-  if (!isOpen && !triggerOpen) {
-    return (
-      <motion.button
-        onClick={() => setIsOpen(true)}
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-        className="bg-cyber-blue hover:bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg transition-colors flex items-center"
-      >
-        {buttonIcon}
-        {buttonText}
-      </motion.button>
-    );
+  if (!isOpen) {
+    return null;
   }
 
   return (

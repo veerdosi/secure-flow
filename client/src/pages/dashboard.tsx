@@ -297,7 +297,7 @@ export default function DashboardPage() {
           {triggerProjectSetup && (
             <ProjectSetup
               onProjectCreated={handleProjectCreated}
-              triggerOpen={triggerProjectSetup}
+              isOpen={triggerProjectSetup} 
               onClose={() => setTriggerProjectSetup(false)}
             />
           )}
@@ -452,9 +452,8 @@ export default function DashboardPage() {
                 <div className="flex flex-col sm:flex-row gap-4">
                   <ProjectSetup
                     onProjectCreated={handleProjectCreated}
-                    triggerOpen={triggerProjectSetup}
-                    buttonText="Add Your First Project"
-                    buttonIcon={<Plus className="w-5 h-5 mr-2" />}
+                    isOpen={triggerProjectSetup} 
+                    onClose={() => setTriggerProjectSetup(false)}
                   />
                   <button
                     onClick={() => router.push('/projects')}
